@@ -1,6 +1,6 @@
 import os
 from PIL import Image
-from .output_utils import base_dir
+from app.utils.output_utils import base_dir
 
 def embed_logo(qr_img, logo_choice):
     #Path to logos
@@ -14,8 +14,9 @@ def embed_logo(qr_img, logo_choice):
         logo_path = os.path.join(logo_dir, '4747499_github_icon.png')
         print("logo_path")
         #Embed logo if provided
-    if logo_path and os.path.exists(logo_path):
-        print("HERE!!!")
+    if not logo_path or not os.path.exists(logo_path):
+        raise FileNotFoundError(f"Logo not found at: {logo_path}")
+    else:
         logo = Image.open(logo_path)
 
         qr_width, qr_height = qr_img.size

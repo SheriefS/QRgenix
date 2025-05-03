@@ -1,8 +1,8 @@
 import os
-from PIL import Image
+from pathlib import Path
 
 def base_dir():
-    return os.path.dirname(os.path.dirname(__file__))
+    return Path(__file__).resolve().parents[2]
 
 def save_img(qr_img, filename):   
     output_dir = os.path.join(base_dir(), 'output')

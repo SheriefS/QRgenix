@@ -4,8 +4,8 @@ from pathlib import Path
 # Add the root directory to sys.path to import from app/
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from app.output_utils import save_img
-from app.QRify import generate_qr
+from app.utils.output_utils import save_img
+from app.generate_QR import generate_qr
 
 def main():
 

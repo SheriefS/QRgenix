@@ -1,12 +1,16 @@
 #app/QRify
 
-from .link_utils import clean_google_doc_url
-from .image_utils import embed_logo
+from app.utils.link_utils import clean_url
+from app.utils.image_utils import embed_logo
 import qrcode
 from PIL import Image
 import qrcode.constants
 
 def generate_qr(data, logo_choice=0):
+
+
+    if not data or not data.strip():
+        raise ValueError("Input URL cannot be empty.")
 
     if logo_choice == 0:
         error_correction = qrcode.constants.ERROR_CORRECT_L
@@ -20,7 +24,7 @@ def generate_qr(data, logo_choice=0):
         box_size=10, 
         border=4
     )
-    data = clean_google_doc_url(data)
+    data = clean_url(data)
     print(data)
     qr.add_data(data)
     qr.make(fit=True)

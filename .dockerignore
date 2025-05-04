@@ -1,0 +1,36 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+env/
+
+# Git & version control
+.git/
+.gitignore
+
+# Editor/IDE settings
+.vscode/
+.idea/
+
+# Build/test/output artifacts
+output/
+build/
+dist/
+*.egg-info/
+*.log
+
+# System/OS files
+.DS_Store
+Thumbs.db
+
+# Secrets and keys
+.env
+*.pem
+*.key
+
+# Temporary/backup files
+*.bak
+*.tmp
+EOF

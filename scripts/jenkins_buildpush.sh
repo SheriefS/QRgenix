@@ -4,8 +4,11 @@ echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin
 # 2. Build the image using Compose
 docker compose -f docker-compose.ci.yml build
 
+# 2.1 Remove existing container if it exists
+docker rm -f qrgenix-ci 2>/dev/null || true
+
 # 3. Run tests inside a fresh container
-docker compose -f docker-compose.ci.yml up --abort-on-container-exit --force-recreate
+docker compose -f docker-compose.ci.yml up --abort-on-container-exit
 test_status=$?
 
 if [ $test_status -ne 0 ]; then

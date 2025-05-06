@@ -1,28 +1,40 @@
 # 1. Authenticate with GHCR
-echo "$GHCR_TOKEN" | docker login ghcr.io -u sheriefs --password-stdin
+echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin
 
 # 2. Build the image using Compose
 docker compose -f docker-compose.ci.yml build
 
-# 3. Tag the image for GHCR
-docker tag qrgenix-ci ghcr.io/sheriefs/qrgenix:latest
+# 3. Run tests inside container
+docker compose -f docker-compose.ci.yml up --abort-on-container-exit
+test_status=$?
 
-# 4. Push to GHCR
-docker push ghcr.io/sheriefs/qrgenix:latest
-
-status=$?
-
-if [ $status -ne 0 ]; then
+if [ $test_status -ne 0 ]; then
+  # ❌ Tests failed
   curl -X POST -H 'Content-type: application/json' \
   --data "{
-    \"text\": \"❌ *QRgenix Build Failed*\n*Job:* $JOB_NAME\n*Build:* #$BUILD_NUMBER\n*Status:* FAILED\n<${BUILD_URL}|View Build>\"
+    \"text\": \"❌ *QRgenix Tests Failed*\n*Job:* $JOB_NAME\n*Build:* #$BUILD_NUMBER\n<${BUILD_URL}|View Build>\"
   }" \
   "$SLACK_WEBHOOK"
-  exit $status
-else
+  exit $test_status
+
+# 4. Tag and push image only if tests passed
+docker tag qrgenix-ci ghcr.io/"$GITHUB_USER"/qrgenix:latest
+docker push ghcr.io/"$GITHUB_USER"/qrgenix:latest
+push_status=$?
+
+if [ $push_status -ne 0 ]; then
+  # ❌ Push failed
   curl -X POST -H 'Content-type: application/json' \
   --data "{
-    \"text\": \"✅ *QRgenix Build Success*\n*Job:* $JOB_NAME\n*Build:* #$BUILD_NUMBER\n*Status:* SUCCESS\n<${BUILD_URL}|View Build>\"
+    \"text\": \"⚠️ *QRgenix Push Failed*\n*Job:* $JOB_NAME\n*Build:* #$BUILD_NUMBER\n<${BUILD_URL}|View Build>\"
+  }" \
+  "$SLACK_WEBHOOK"
+  exit $push_status
+else
+  # ✅ All good
+  curl -X POST -H 'Content-type: application/json' \
+  --data "{
+    \"text\": \"✅ *QRgenix Build + Push Success*\n*Job:* $JOB_NAME\n*Build:* #$BUILD_NUMBER\n<${BUILD_URL}|View Build>\"
   }" \
   "$SLACK_WEBHOOK"
 fi

@@ -16,6 +16,7 @@ if [ $test_status -ne 0 ]; then
   }" \
   "$SLACK_WEBHOOK"
   exit $test_status
+fi
 
 # 4. Tag and push image only if tests passed
 docker tag qrgenix-ci ghcr.io/"$GITHUB_USER"/qrgenix:latest

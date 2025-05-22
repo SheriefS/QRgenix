@@ -1,0 +1,12 @@
+services:
+  qrgenix:
+    build:
+      context: .
+    image: qrgenix-ci
+    container_name: qrgenix-ci
+    working_dir: /app
+    command: >
+      sh -c "pytest --junitxml=results.xml --maxfail=1 --disable-warnings -q"
+    volumes:
+      - .:/app
+      - ./results:/app/results

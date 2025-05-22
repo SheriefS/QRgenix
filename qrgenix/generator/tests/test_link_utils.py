@@ -1,6 +1,6 @@
 # tests/test_link_utils.py
 
-from app.utils.link_utils import clean_url
+from generator.qrcode_core.utils.link_utils import clean_url
 
 def test_clean_google_doc_url():
     input_url = "https://docs.google.com/document/d/abc123/edit?usp=sharing"

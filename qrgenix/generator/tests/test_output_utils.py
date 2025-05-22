@@ -1,4 +1,4 @@
-from app.utils.output_utils import save_img
+from generator.qrcode_core.utils.output_utils import save_img
 from PIL import Image
 import os
 import shutil
@@ -14,7 +14,7 @@ def test_save_img_creates_output_and_saves(tmp_path):
         def __call__(self): return self._p
 
     # Temporarily override base_dir function
-    from app.utils import output_utils
+    from generator.qrcode_core.utils import output_utils
     original_base_dir = output_utils.base_dir
     output_utils.base_dir = FakePath(tmp_path)
 

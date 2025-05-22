@@ -1,5 +1,5 @@
 import pytest
-from app.generate_QR import generate_qr
+from generator.qrcode_core.generate_QR import generate_qr
 from PIL import Image
 
 def test_generate_qr_without_logo():

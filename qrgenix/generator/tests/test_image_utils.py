@@ -1,6 +1,6 @@
 import pytest
 from PIL import Image
-from app.utils.image_utils import embed_logo
+from generator.qrcode_core.utils.image_utils import embed_logo
 
 def test_embed_logo_with_valid_logo_choice(tmp_path):
     # Create dummy QR image
@@ -15,9 +15,9 @@ def test_embed_logo_with_valid_logo_choice(tmp_path):
     # Optional: check that it's still a valid PIL image object
     assert isinstance(result_img, Image.Image)
 
-import pytest
-from PIL import Image
-from app.utils.image_utils import embed_logo
+# import pytest
+# from PIL import Image
+# from app.utils.image_utils import embed_logo
 
 def test_embed_logo_raises_error_for_missing_logo():
     qr_img = Image.new("RGB", (500, 500), color="white")

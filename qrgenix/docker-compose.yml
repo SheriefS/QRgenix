@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  qrgenix:
+    build: .
+    container_name: qrgenix
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: python3 CLI/main.py

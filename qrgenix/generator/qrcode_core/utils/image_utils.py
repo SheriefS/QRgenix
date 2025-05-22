@@ -1,6 +1,6 @@
 import os
 from PIL import Image
-from app.utils.output_utils import base_dir
+from generator.qrcode_core.utils.output_utils import base_dir
 
 def embed_logo(qr_img, logo_choice):
     #Path to logos

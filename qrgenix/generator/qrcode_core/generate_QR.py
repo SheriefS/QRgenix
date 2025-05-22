@@ -1,7 +1,7 @@
 #app/QRify
 
-from app.utils.link_utils import clean_url
-from app.utils.image_utils import embed_logo
+from generator.qrcode_core.utils.link_utils import clean_url
+from generator.qrcode_core.utils.image_utils import embed_logo
 import qrcode
 from PIL import Image
 import qrcode.constants

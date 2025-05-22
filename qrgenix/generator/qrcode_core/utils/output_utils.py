@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 def base_dir():
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[1]
 
 def save_img(qr_img, filename):   
     output_dir = os.path.join(base_dir(), 'output')

@@ -1,3 +1,16 @@
+#!/bin/bash
+
+# Check for changes other than README. If none, exit job
+echo "Checking changed files in commit: $GIT_COMMIT"
+changed=$(git diff-tree --no-commit-id --name-only -r "$GIT_COMMIT")
+
+if echo "$changed" | grep -v '^README.md$' > /dev/null; then
+  echo "Detected relevant changes. Proceeding with build..."
+else
+  echo "Only README.md changed. Skipping build."
+  exit 0
+fi
+
 # 1. Authenticate with GHCR
 echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin
 

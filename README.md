@@ -10,9 +10,9 @@ While other websites exist with the same purpose, this is a pesonal project to e
 
 **IDE:** _VS Code_
 
-**Primary language: **_Python_
+**Primary language:** _Python_
 
-**Version Control:** **Git/Github**
+**Version Control:** _Git/Github_
 
 **Unit Testing:** _Pytest_
 

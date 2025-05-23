@@ -16,7 +16,7 @@ While other websites exist with the same purpose, this is a pesonal project to e
 
 ### Unit Testing: **Pytest**
 
-### CI Pipeline Automation: J**enkins**
+### CI Pipeline Automation: **Jenkins**
 
 ### Container Repo: **Github COntainer Repository (GHCR)**
 
@@ -24,7 +24,7 @@ While other websites exist with the same purpose, this is a pesonal project to e
 
 ### Orchestration: **Kubernetes - K3s**
 
-### Web Framework: _TBD_
+### Web Framework: Django
 
 ### Cloud Platform: _TBD_
 

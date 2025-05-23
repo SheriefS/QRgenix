@@ -8,24 +8,24 @@ While other websites exist with the same purpose, this is a pesonal project to e
 
 ## 🔧  Tools to be used:
 
-### IDE: **VS Code**
+**IDE:** _VS Code_
 
-### Primary language: **Python**
+**Primary language: **_Python_
 
-### Version Control: **Git/Github**
+**Version Control:** **Git/Github**
 
-### Unit Testing: **Pytest**
+**Unit Testing:** _Pytest_
 
-### CI Pipeline Automation: **Jenkins**
+**CI Pipeline Automation:** _Jenkins_
 
-### Container Repo: **Github COntainer Repository (GHCR)**
+**Container Repo:** _Github COntainer Repository (GHCR)_
 
-### Containerization: **Docker**
+**Containerization:** _Docker_
 
-### Orchestration: **Kubernetes - K3s**
+**Orchestration:** _Kubernetes - K3s_
 
-### Web Framework: Django
+**Web Framework:** _Django_
 
-### Cloud Platform: _TBD_
+**Cloud Platform:** _TBD_
 
-### Deployment: **Ansible**
+**Deployment:** _Ansible_

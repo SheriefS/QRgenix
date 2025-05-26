@@ -6,13 +6,13 @@ import qrcode
 from PIL import Image
 import qrcode.constants
 
-def generate_qr(data, logo_choice=0):
+def generate_qr(url, logo_name=None, color="#000000", bg_color="#ffffff", minify=False):
 
 
-    if not data or not data.strip():
+    if not url or not url.strip():
         raise ValueError("Input URL cannot be empty.")
 
-    if logo_choice == 0:
+    if not logo_name:
         error_correction = qrcode.constants.ERROR_CORRECT_L
     else:
         error_correction = qrcode.constants.ERROR_CORRECT_H
@@ -24,13 +24,13 @@ def generate_qr(data, logo_choice=0):
         box_size=10, 
         border=4
     )
-    data = clean_url(data)
-    print(data)
-    qr.add_data(data)
+    if minify:
+        url = clean_url(url)
+    qr.add_data(url)
     qr.make(fit=True)
-    qr_img = qr.make_image(fill="black", back_color="white").convert("RGB")
+    qr_img = qr.make_image(fill_color=color, back_color=bg_color).convert("RGB")
 
-    if logo_choice:
-        qr_img = embed_logo(qr_img, logo_choice)
+    if logo_name is not None:
+        qr_img = embed_logo(qr_img, logo_name, bg_color)
     
     return qr_img

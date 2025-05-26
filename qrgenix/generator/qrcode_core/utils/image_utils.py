@@ -2,18 +2,14 @@ import os
 from PIL import Image
 from generator.qrcode_core.utils.output_utils import base_dir
 
-def embed_logo(qr_img, logo_choice):
+def embed_logo(qr_img, logo_name, bg_color="#ffffff"):
     #Path to logos
     logo_dir = os.path.join(base_dir(), 'assets', 'logos')
 
     #Choose logo
-    logo_path = None
-    if logo_choice == 1:
-        logo_path = os.path.join(logo_dir, '5296501_linkedin_network_linkedin logo_icon.png')
-    elif logo_choice == 2:
-        logo_path = os.path.join(logo_dir, '4747499_github_icon.png')
-        print("logo_path")
-        #Embed logo if provided
+    logo_path = os.path.join(logo_dir, logo_name)
+    print(logo_path)
+    #Embed logo if provided
     if not logo_path or not os.path.exists(logo_path):
         raise FileNotFoundError(f"Logo not found at: {logo_path}")
     else:
@@ -27,7 +23,7 @@ def embed_logo(qr_img, logo_choice):
 
         #qr_img.paste(logo, pos, mask=logo if logo.mode =='RGBA' else None)
         if logo.mode in ("RGBA", "LA"):
-            background = Image.new("RGB", logo.size, (255, 255, 255))
+            background = Image.new("RGB", logo.size, color=bg_color)
             background.paste(logo, mask = logo.split()[-1])
             logo = background
         else:

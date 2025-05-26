@@ -7,7 +7,7 @@ def test_embed_logo_with_valid_logo_choice(tmp_path):
     qr_img = Image.new("RGB", (500, 500), color="white")
 
     # Run embed_logo with known good logo_choice
-    result_img = embed_logo(qr_img, logo_choice=1)
+    result_img = embed_logo(qr_img, logo_name="4747499_github_icon.png")
 
     # Assert image was resized correctly
     assert result_img.size == (360, 360)
@@ -24,4 +24,4 @@ def test_embed_logo_raises_error_for_missing_logo():
 
     # Use an invalid logo_choice to simulate missing file
     with pytest.raises(FileNotFoundError):
-        embed_logo(qr_img, logo_choice=999)
+        embed_logo(qr_img, logo_name="git.png", bg_color="#f9f900")

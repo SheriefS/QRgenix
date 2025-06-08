@@ -6,7 +6,7 @@ python3 -m venv venv
 pip install --upgrade pip
 
 # Step 3: Install dependencies
-pip install -r qrgenix/requirements.txt
+pip install -r backend-django/requirements.txt
 
 # Step 4: Run tests and create results.xml file
 pytest --junitxml=results.xml --maxfail=1 --disable-warnings -q

@@ -7,3 +7,5 @@ __pycache__/
 qrgenix/generator/qrcode_core/output/
 qrgenix/scripts/docker_login.sh
 qrgenix/scripts/trigger_jenkins.sh
+create_github_issues.sh
+create_github_labels.sh

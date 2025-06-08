@@ -1,18 +1,18 @@
 #app/QRify
 
 from generator.qrcode_core.utils.link_utils import clean_url
-from generator.qrcode_core.utils.image_utils import embed_logo
+from generator.qrcode_core.utils.image_utils import embed_logo, open_img
 import qrcode
 from PIL import Image
 import qrcode.constants
 
-def generate_qr(url, logo_name=None, color="#000000", bg_color="#ffffff", minify=False):
+def generate_qr(url, logo_name=None, logo_img=None, color="#000000", bg_color="#ffffff", minify=False):
 
 
     if not url or not url.strip():
         raise ValueError("Input URL cannot be empty.")
 
-    if not logo_name:
+    if not logo_name and not logo_img:
         error_correction = qrcode.constants.ERROR_CORRECT_L
     else:
         error_correction = qrcode.constants.ERROR_CORRECT_H
@@ -31,6 +31,8 @@ def generate_qr(url, logo_name=None, color="#000000", bg_color="#ffffff", minify
     qr_img = qr.make_image(fill_color=color, back_color=bg_color).convert("RGB")
 
     if logo_name is not None:
-        qr_img = embed_logo(qr_img, logo_name, bg_color)
+        qr_img = open_img(qr_img, logo_name, bg_color)
+    if logo_img is not None:
+        qr_img = embed_logo(qr_img, logo_img, bg_color)
     
     return qr_img

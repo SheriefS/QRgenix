@@ -1,0 +1,46 @@
+services:
+  backend:
+    build:
+      context: ./backend-django
+    image: qrgenix-backend
+    container_name: qrgenix-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend-django:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=qrgenix.settings
+    depends_on:
+      - frontend
+    networks:
+      - qrgenix-net
+
+  frontend:
+    build:
+      context: ./frontend-vite
+    image: qrgenix-frontend
+    container_name: qrgenix-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend-vite:/app
+    command: npm run dev -- --host
+    networks:
+      - qrgenix-net
+
+  nginx:
+    build:
+      context: ./nginx
+    container_name: qrgenix-nginx
+    ports:
+      - "8787:80"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - qrgenix-net
+
+networks:
+  qrgenix-net:
+    driver: bridge
+

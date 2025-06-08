@@ -1,0 +1,14 @@
+# Backend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: qrgenix-backend
+  namespace: qrgenix
+spec:
+  selector:
+    app: qrgenix-backend
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP

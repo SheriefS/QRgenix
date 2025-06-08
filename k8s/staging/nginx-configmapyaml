@@ -1,0 +1,23 @@
+# Nginx ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qrgenix-nginx-config
+  namespace: qrgenix
+
+data:
+  nginx.conf: |
+    events {}
+    http {
+      server {
+        listen 80;
+
+        location /api/ {
+          proxy_pass http://qrgenix-backend.qrgenix.svc.cluster.local:8000/;
+        }
+
+        location /app/ {
+          proxy_pass http://qrgenix-frontend.qrgenix.svc.cluster.local:5173/;
+        }
+      }
+    }

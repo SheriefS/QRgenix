@@ -1,0 +1,10 @@
+.pytest_cache/
+scripts/
+__pycache__/
+*.pyc
+*.env
+*.crt
+*.key
+generator/qrcode_core/output/
+results/
+CLI/

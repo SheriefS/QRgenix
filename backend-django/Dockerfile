@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Set default command
-CMD [ "python", "CLI/main.py" ]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

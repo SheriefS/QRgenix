@@ -1,0 +1,26 @@
+# Backend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qrgenix-backend
+  namespace: qrgenix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qrgenix-backend
+  template:
+    metadata:
+      labels:
+        app: qrgenix-backend
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/sheriefs/qrgenix-backend:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DJANGO_SETTINGS_MODULE
+              value: "qrgenix.settings"
+      imagePullSecrets:
+        - name: ghcr-secret

@@ -1,0 +1,24 @@
+# Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qrgenix-frontend
+  namespace: qrgenix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qrgenix-frontend
+  template:
+    metadata:
+      labels:
+        app: qrgenix-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/sheriefs/qrgenix-frontend:latest
+          ports:
+            - containerPort: 5173
+          command: ["npm", "run", "dev", "--", "--host"]
+      imagePullSecrets:
+        - name: ghcr-secret

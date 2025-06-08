@@ -1,0 +1,14 @@
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: qrgenix-frontend
+  namespace: qrgenix
+spec:
+  selector:
+    app: qrgenix-frontend
+  ports:
+    - protocol: TCP
+      port: 5173
+      targetPort: 5173
+  type: ClusterIP

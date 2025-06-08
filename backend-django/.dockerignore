@@ -13,9 +13,13 @@ env/
 # Editor/IDE settings
 .vscode/
 .idea/
+.pytest_cache
 
 # Build/test/output artifacts
 output/
+scripts/
+CLI/
+results/
 build/
 dist/
 *.egg-info/

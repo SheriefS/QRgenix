@@ -1,6 +1,7 @@
 # Create your views here.
 import io
 import base64
+from PIL import Image
 import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -17,8 +18,16 @@ def generate_qr_api(request):
         url = data.get("url")
         color = data.get("color", "#000000")
         bg_color = data.get("bg_color", "#ffffff")
+        logo_data = data.get("logo_data")
         logo_name = data.get("logo")  # e.g., "github.png"
         minify = data.get("minify", False)  # Default to False
+
+        logo_img = None
+        if logo_data:
+            try:
+                logo_img = Image.open(io.BytesIO(base64.b64decode(logo_data)))
+            except Exception as e:
+                return JsonResponse({"error": "Invalid logo image data"}, status=400)
 
         if not is_valid_hex_color(color):
             return JsonResponse({"error": f"Invalid foreground color: {color}"}, status=400)
@@ -30,7 +39,7 @@ def generate_qr_api(request):
             return JsonResponse({"error": "URL is required"}, status=400)
 
         # Assuming you have a function like this already
-        img = generate_qr(url, logo_name, color, bg_color, minify)  # Must return a PIL image
+        img = generate_qr(url, logo_name, logo_img, color, bg_color, minify)  # Must return a PIL image
 
         # Convert image to base64
         buffer = io.BytesIO()

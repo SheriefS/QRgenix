@@ -4,7 +4,7 @@ from pathlib import Path
 # Add the root directory to sys.path to import from app/
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from generator.qrcode_core.utils.output_utils import save_img
+from qrcode_core.utils.output_utils import save_img
 from generate_QR import generate_qr
 
 def main():
@@ -35,7 +35,7 @@ def main():
                 int_logo = int(logo)
                 break
             elif logo == '2':
-                int_logo = int(logo)
+                int_logo = '5296501_linkedin_network_linkedin logo_icon.png'
                 break
             else:
                 logo = input("Please choose a valid input...\nChoose '1' for linkedIn, '2' for Github, or type 'no' for none: ")

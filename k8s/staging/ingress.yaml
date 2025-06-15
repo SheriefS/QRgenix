@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: qrgenix-ingress
+  namespace: qrgenix
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: qrgenix.duckdns.org
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: qrgenix-nginx
+                port:
+                  number: 80

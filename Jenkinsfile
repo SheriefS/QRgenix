@@ -1,155 +1,168 @@
+/* groovylint-disable CompileStatic */
 pipeline {
   agent any
 
   environment {
-    GHCR_REGISTRY = "ghcr.io"
-    REPO = "qrgenix"
-    SLACK_WEBHOOK = credentials('slack-webhook')
-    GITHUB_USER = credentials('github-user')
-    GHCR_TOKEN = credentials('ghcr-token')
+      GHCR_REGISTRY = 'ghcr.io'
+      REPO = 'qrgenix'
+      SLACK_WEBHOOK = credentials('slack-webhook')
+      GITHUB_USER = credentials('github-user')
+      GHCR_TOKEN = credentials('ghcr-token')
+      PERSIST_DIR = '.jenkins-persist'
+      K8S_PENDING_FILE = "${PERSIST_DIR}/k8s-pending.flag"
+      BACKEND_PENDING_FILE = "${PERSIST_DIR}/backend-pending.flag"
+      FRONTEND_PENDING_FILE = "${PERSIST_DIR}/frontend-pending.flag"
   }
 
   options {
     skipStagesAfterUnstable()
     timestamps()
   }
-
   stages {
-
     stage('Check for README-only changes') {
-      steps {
-        script {
+        steps {
+            script {
           def changedFiles = sh(script: "git diff-tree --no-commit-id --name-only -r $GIT_COMMIT", returnStdout: true).trim()
           if (changedFiles == 'README.md') {
             echo 'Only README.md changed. Skipping pipeline.'
             currentBuild.result = 'NOT_BUILT'
             error('README-only change')
           }
+            }
         }
-      }
     }
 
     stage('Test Frontend (Code Only)') {
-      when {
-        not { branch 'main' }
-      }
-      agent {
-        docker {
+        when {
+            not { branch 'main' }
+        }
+        agent {
+            docker {
           image 'node:22.16.0'
           args '-u root'
+            }
         }
-      }
-      steps {
-        dir('frontend-vite') {
+        steps {
+            dir('frontend-vite') {
           sh 'npm ci'
           sh 'npm run test'
+            }
         }
-      }
-      post {
-        success { script { notifySlackSuccess("✅") } }
-        failure { script { notifySlackFailure("❌") } }
-      }
+        post {
+            success { script { notifySlackSuccess('✅') } }
+            failure { script { notifySlackFailure('❌') } }
+        }
     }
 
     stage('Test Backend (Code Only)') {
-      when {
-        not { branch 'main' }
-      }
-      agent {
-        docker {
+        when {
+            not { branch 'main' }
+        }
+        agent {
+            docker {
           image 'python:3.12.3'
           args '-u root'
+            }
         }
-      }
-      steps {
-        dir('backend-django') {
+        steps {
+            dir('backend-django') {
           sh 'pip install -r requirements.txt'
           sh 'pytest --junitxml=results.xml --maxfail=1 --disable-warnings -q'
+            }
         }
-      }
-      post {
-        success { script { notifySlackSuccess("✅") } }
-        failure { script { notifySlackFailure("❌") } }
-      }
+        post {
+            success { script { notifySlackSuccess('✅') } }
+            failure { script { notifySlackFailure('❌') } }
+        }
     }
 
     stage('Build, Test, and Push Containers (main only)') {
-      when {
-        branch 'main'
-      }
-      stages {
-        stage('Detect Changes') {
+        when {
+            branch 'main'
+        }
+        stages {
+            stage('Detect Changes') {
           steps {
             script {
-              def changedFiles = sh(script: "git diff --name-only HEAD~1 HEAD", returnStdout: true).trim()
+              sh "mkdir -p ${PERSIST_DIR}"
+              def changedFiles = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
 
               env.BACKEND_CHANGED = changedFiles.contains('backend-django/') ? 'true' : 'false'
               env.FRONTEND_CHANGED = changedFiles.contains('frontend-vite/') ? 'true' : 'false'
               env.K8S_CHANGED = changedFiles.readLines().any { it.startsWith('k8s/') } ? 'true' : 'false'
 
+              if (env.BACKEND_CHANGED == 'true') {
+                writeFile file: env.BACKEND_PENDING_FILE, text: 'true'
+              }
+              if (env.FRONTEND_CHANGED == 'true') {
+                writeFile file: env.FRONTEND_PENDING_FILE, text: 'true'
+              }
+              if (env.K8S_CHANGED == 'true') {
+                writeFile file: env.K8S_PENDING_FILE, text: 'true'
+              }
 
               echo "Backend Changed: ${env.BACKEND_CHANGED}"
               echo "Frontend Changed: ${env.FRONTEND_CHANGED}"
-              echo "K8s Config Changed: ${env.K8s_CHANGED}"
+              echo "K8s Config Changed: ${env.K8S_CHANGED}"
             }
           }
-        }
+            }
 
-        stage('Clean Up Frontend Container') {
+            stage('Clean Up Frontend Container') {
           when {
-            expression { env.FRONTEND_CHANGED == 'true' }
+            expression { fileExists(env.FRONTEND_PENDING_FILE) }
           }
           steps {
             sh 'docker rm -f frontend-ci || true'
           }
           post {
-            success { script { notifySlackSuccess("🧹") } }
-            failure { script { notifySlackFailure("❌") } }
+            success { script { notifySlackSuccess('🧹') } }
+            failure { script { notifySlackFailure('❌') } }
           }
-        }
+            }
 
-        stage('Clean Up Backend Container') {
+            stage('Clean Up Backend Container') {
           when {
-            expression { env.BACKEND_CHANGED == 'true' }
+            expression { fileExists(env.BACKEND_PENDING_FILE) }
           }
           steps {
             sh 'docker rm -f backend-ci || true'
           }
           post {
-            success { script { notifySlackSuccess("🧹") } }
-            failure { script { notifySlackFailure("❌") } }
+            success { script { notifySlackSuccess('🧹') } }
+            failure { script { notifySlackFailure('❌') } }
           }
-        }
+            }
 
-        stage('Build Container Frontend Container') {
+            stage('Build Frontend Container') {
           when {
-            expression { env.FRONTEND_CHANGED == 'true' }
-          } 
+            expression { fileExists(env.FRONTEND_PENDING_FILE) }
+          }
           steps {
             sh 'docker compose -f docker-compose.ci.yml build frontend'
           }
           post {
-            success { script { notifySlackSuccess("📦") } }
-            failure { script { notifySlackFailure("❌") } }
+            success { script { notifySlackSuccess('📦') } }
+            failure { script { notifySlackFailure('❌') } }
           }
-        }
+            }
 
-        stage('Build Container Backend Container') {
+            stage('Build Backend Container') {
           when {
-            expression { env.BACKEND_CHANGED == 'true' }
-          } 
+            expression { fileExists(env.BACKEND_PENDING_FILE) }
+          }
           steps {
             sh 'docker compose -f docker-compose.ci.yml build backend'
           }
           post {
-            success { script { notifySlackSuccess("📦") } }
-            failure { script { notifySlackFailure("❌") } }
+            success { script { notifySlackSuccess('📦') } }
+            failure { script { notifySlackFailure('❌') } }
           }
-        }
+            }
 
-        stage('Test Backend in Container') {
+            stage('Test Backend in Container') {
           when {
-            expression { env.BACKEND_CHANGED == 'true' }
+            expression { fileExists(env.BACKEND_PENDING_FILE) }
           }
           steps {
             catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
@@ -157,14 +170,14 @@ pipeline {
             }
           }
           post {
-            success { script { notifySlackSuccess("🧪") } }
-            failure { script { notifySlackFailure("❌") } }
+            success { script { notifySlackSuccess('🧪') } }
+            failure { script { notifySlackFailure('❌') } }
           }
-        }
+            }
 
-        stage('Test Frontend in Container') {
+            stage('Test Frontend in Container') {
           when {
-            expression { env.FRONTEND_CHANGED == 'true' }
+            expression { fileExists(env.FRONTEND_PENDING_FILE) }
           }
           steps {
             catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
@@ -172,33 +185,31 @@ pipeline {
             }
           }
           post {
-            success { script { notifySlackSuccess("🧪") } }
-            failure { script { notifySlackFailure("❌") } }
+            success { script { notifySlackSuccess('🧪') } }
+            failure { script { notifySlackFailure('❌') } }
           }
-        }
-
-        stage('Login to GHCR') {
-          when {
-            expression { 
-              return env.BACKEND_CHANGED == 'true' || env.FRONTEND_CHANGED == 'true'
             }
+
+            stage('Login to GHCR') {
+          when {
+            expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) }
           }
           steps {
             withCredentials([usernamePassword(credentialsId: 'ghcr-token', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN')]) {
               sh '''
-                echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_USER" --password-stdin
-              '''
+            echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_USER" --password-stdin
+          '''
             }
           }
           post {
-            success { script { notifySlackSuccess("🔐") } }
-            failure { script { notifySlackFailure("❌ Login to GHCR") } }
+            success { script { notifySlackSuccess('🔐') } }
+            failure { script { notifySlackFailure('❌') } }
           }
-        }
+            }
 
-        stage('Push Backend Image') {
+            stage('Push Backend Image') {
           when {
-            expression { env.BACKEND_CHANGED == 'true' }
+            expression { fileExists(env.BACKEND_PENDING_FILE) }
           }
           steps {
             script {
@@ -208,14 +219,19 @@ pipeline {
             }
           }
           post {
-            success { script { notifySlackSuccess("🚀 Backend") } }
-            failure { script { notifySlackFailure("❌ Push Backend") } }
+            success {
+              script {
+                sh "rm -f ${env.BACKEND_PENDING_FILE}"
+                notifySlackSuccess('🚀')
+              }
+            }
+            failure { script { notifySlackFailure('❌') } }
           }
-        }
+            }
 
-        stage('Push Frontend Image') {
+            stage('Push Frontend Image') {
           when {
-            expression { env.FRONTEND_CHANGED == 'true' }
+            expression { fileExists(env.FRONTEND_PENDING_FILE) }
           }
           steps {
             script {
@@ -225,63 +241,80 @@ pipeline {
             }
           }
           post {
-            success { script { notifySlackSuccess("🚀 Frontend") } }
-            failure { script { notifySlackFailure("❌ Push Frontend") } }
+            success {
+              script {
+                sh "rm -f ${env.FRONTEND_PENDING_FILE}"
+                notifySlackSuccess('🚀 Frontend')
+              }
+            }
+            failure { script { notifySlackFailure('❌') } }
           }
-        }
+            }
 
-        stage('Apply Staging K8s YAMLs') {
+            stage('Apply Staging K8s YAMLs') {
           when {
-            expression { env.K8S_CHANGED == 'true' }
+            expression {
+              return fileExists(env.K8S_PENDING_FILE)
+            }
           }
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
               withCredentials([usernamePassword(credentialsId: 'github-user', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
                 sh '''
-                  ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
-                    # Set up kubeconfig if missing
-                    [ -f ~/.kube/config ] || (
-                      mkdir -p ~/.kube &&
-                      sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config &&
-                      sudo chown ubuntu:ubuntu ~/.kube/config
-                    )
+              ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
+                [ -f ~/.kube/config ] || (
+                  mkdir -p ~/.kube &&
+                  sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config &&
+                  sudo chown ubuntu:ubuntu ~/.kube/config
+                )
 
-                    # Clone or update repo
-                    cd ~/qrgenix || git clone https://github.com/$GIT_USER/qrgenix.git ~/qrgenix
-                    cd ~/qrgenix
-                    git pull
+                cd ~/qrgenix || git clone https://github.com/$GIT_USER/qrgenix.git ~/qrgenix
+                cd ~/qrgenix
+                git pull
 
-                    # Apply manifests
-                    kubectl apply -f k8s/staging
-                  '
-                '''
+                kubectl apply -f k8s/staging
+              '
+            '''
               }
             }
           }
           post {
-            success { script { notifySlackSuccess("⚙️") } }
-            failure { script { notifySlackFailure("❌") } }
+            success {
+              script {
+                sh "rm -f ${env.K8S_PENDING_FILE}"
+                notifySlackSuccess('⚙️')
+              }
+            }
+            failure {
+              notifySlackFailure('❌')
+            }
           }
-        }
+            }
 
         stage('Deploy to K3s') {
           when {
-            expression { env.BACKEND_CHANGED == 'true' || env.FRONTEND_CHANGED == 'true' }
+            expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) }
           }
           steps {
-            sshagent(credentials: ['ec2-ssh-key']) {
-              sh """
-                ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
-                  ${env.BACKEND_CHANGED == 'true' ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-backend:latest && kubectl rollout restart deployment qrgenix-backend -n qrgenix &&" : ""}
-                  ${env.FRONTEND_CHANGED == 'true' ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-frontend:latest && kubectl rollout restart deployment qrgenix-frontend -n qrgenix &&" : ""}
-                  echo "Deployment Complete"
-                '
-              """
+            script {
+              def backendCmd = fileExists(env.BACKEND_PENDING_FILE) ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-backend:latest && kubectl rollout restart deployment qrgenix-backend -n qrgenix &&" : ''
+              def frontendCmd = fileExists(env.FRONTEND_PENDING_FILE) ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-frontend:latest && kubectl rollout restart deployment qrgenix-frontend -n qrgenix &&" : ''
+
+              sshagent(credentials: ['ec2-ssh-key']) {
+                sh """
+                  ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
+                    /* groovylint-disable-next-line LineLength */
+                    ${backendCmd}
+                    ${frontendCmd}
+                    echo "Deployment Complete"
+                  '
+                """
+              }
             }
           }
           post {
-            success { script { notifySlackSuccess("🚢") } }
-            failure { script { notifySlackFailure("❌") } }
+            success { script { notifySlackSuccess('🚢') } }
+            failure { script { notifySlackFailure('❌') } }
           }
         }
       }
@@ -289,17 +322,16 @@ pipeline {
   }
 
   post {
-    failure { notifySlack("❌", "Pipeline Failed") }
-    success { notifySlack("✅", "Pipeline Succeeded") }
+      failure { notifySlack('❌', 'Pipeline Failed') }
+      success { notifySlack('✅', 'Pipeline Succeeded') }
   }
 }
 
 def notifySlack(String emoji, String status) {
-  def message = "${emoji} *QRgenix Pipeline ${status}*\n*Job:* ${env.JOB_NAME}\n*Build:* #${env.BUILD_NUMBER}\n<${env.BUILD_URL}|View Build>"
+  def message = "${emoji} QRgenix Pipeline ${status}\nJob: ${env.JOB_NAME}\nBuild: #${env.BUILD_NUMBER}\n<${env.BUILD_URL}|View Build>"
   sh """
-    curl -X POST -H 'Content-type: application/json' \
-    --data '{"text": "${message}"}' "$SLACK_WEBHOOK"
-  """
+    curl -X POST -H 'Content-type: application/json' --data '{"text": "${message}"}' "$SLACK_WEBHOOK"
+    """
 }
 
 def notifySlackFailure(String emoji) {

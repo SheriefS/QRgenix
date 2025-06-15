@@ -1,5 +1,4 @@
 # Backend Deployment
-#test K8s Git trigger
 apiVersion: apps/v1
 kind: Deployment
 metadata:

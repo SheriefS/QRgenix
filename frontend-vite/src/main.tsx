@@ -7,6 +7,7 @@ import App from './App.jsx'
 
 const rootElement = document.getElementById('root');
 
+// test Frontend Git trigger
 // Make sure the element exists
 if (rootElement) {
   const root = createRoot(rootElement);

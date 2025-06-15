@@ -16,6 +16,11 @@ Object.assign(navigator, {
 
 
 describe('QRPreview', () => {
+    Object.assign(navigator, {
+        clipboard: {
+            write: vi.fn().mockResolvedValue(undefined), // or jest.fn() if using Jest
+        },
+    });
     const dummyImage =
         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
 

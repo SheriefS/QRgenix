@@ -9,6 +9,12 @@ interface QRPreviewProps {
 
 function QRPreview({ qrImage, setToastMessage }: QRPreviewProps) {
 
+    const canUseClipboard =
+        typeof navigator !== "undefined" &&
+        typeof window !== "undefined" &&
+        !!navigator.clipboard &&
+        (window.isSecureContext || window.location.hostname === "localhost");
+
     const handleDownload = () => {
         if (!qrImage) return;
         const a = document.createElement("a");
@@ -25,6 +31,11 @@ function QRPreview({ qrImage, setToastMessage }: QRPreviewProps) {
 
     const handleCopy = async () => {
         if (!qrImage) return;
+
+        if (!canUseClipboard) {
+            setToastMessage('❌ Clipboard not available');
+            return;
+        }
 
         try {
             const blob = await fetch(qrImage).then(res => res.blob());
@@ -63,7 +74,7 @@ function QRPreview({ qrImage, setToastMessage }: QRPreviewProps) {
             <div className="flex gap-4">
                 <Button label="Download" onClick={handleDownload} />
                 <Button label="Save" onClick={handleSave} />
-                <Button label="Copy" onClick={handleCopy} />
+                <Button label="Copy" onClick={handleCopy} disabled={!canUseClipboard} />
             </div>
         </div>
     );

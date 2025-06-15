@@ -177,18 +177,39 @@ pipeline {
           }
         }
 
+        stage('Login to GHCR') {
+          when {
+            expression { 
+              return env.BACKEND_CHANGED == 'true' || env.FRONTEND_CHANGED == 'true'
+            }
+          }
+          steps {
+            withCredentials([usernamePassword(credentialsId: 'ghcr-token', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN')]) {
+              sh '''
+                echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_USER" --password-stdin
+              '''
+            }
+          }
+          post {
+            success { script { notifySlackSuccess("🔐") } }
+            failure { script { notifySlackFailure("❌ Login to GHCR") } }
+          }
+        }
+
         stage('Push Backend Image') {
           when {
             expression { env.BACKEND_CHANGED == 'true' }
           }
           steps {
-            sh 'echo $GHCR_TOKEN | docker login ghcr.io -u $GITHUB_USER --password-stdin'
-            sh 'docker tag qrgenix-backend-ci $GHCR_REGISTRY/$GITHUB_USER/${REPO}-backend:latest'
-            sh 'docker push $GHCR_REGISTRY/$GITHUB_USER/${REPO}-backend:latest'
+            script {
+              def backendImage = "${GHCR_REGISTRY}/${GITHUB_USER}/${REPO}-backend:latest"
+              sh "docker tag qrgenix-backend-ci ${backendImage}"
+              sh "docker push ${backendImage}"
+            }
           }
           post {
-            success { script { notifySlackSuccess("🚀") } }
-            failure { script { notifySlackFailure("❌") } }
+            success { script { notifySlackSuccess("🚀 Backend") } }
+            failure { script { notifySlackFailure("❌ Push Backend") } }
           }
         }
 
@@ -197,12 +218,15 @@ pipeline {
             expression { env.FRONTEND_CHANGED == 'true' }
           }
           steps {
-            sh 'docker tag qrgenix-frontend-ci $GHCR_REGISTRY/$GITHUB_USER/${REPO}-frontend:latest'
-            sh 'docker push $GHCR_REGISTRY/$GITHUB_USER/${REPO}-frontend:latest'
+            script {
+              def frontendImage = "${GHCR_REGISTRY}/${GITHUB_USER}/${REPO}-frontend:latest"
+              sh "docker tag qrgenix-frontend-ci ${frontendImage}"
+              sh "docker push ${frontendImage}"
+            }
           }
           post {
-            success { script { notifySlackSuccess("🚀") } }
-            failure { script { notifySlackFailure("❌") } }
+            success { script { notifySlackSuccess("🚀 Frontend") } }
+            failure { script { notifySlackFailure("❌ Push Frontend") } }
           }
         }
 
@@ -210,24 +234,35 @@ pipeline {
           when {
             expression { env.K8S_CHANGED == 'true' }
           }
-            steps {
-              sshagent(credentials: ['ec2-ssh-key']) {
-                sh """
+          steps {
+            sshagent(credentials: ['ec2-ssh-key']) {
+              withCredentials([usernamePassword(credentialsId: 'github-user', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+                sh '''
                   ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
-                    cd ~/qrgenix || git clone https://github.com/$GITHUB_USER/qrgenix.git ~/qrgenix &&
-                    cd ~/qrgenix &&
-                    git pull &&
+                    # Set up kubeconfig if missing
+                    [ -f ~/.kube/config ] || (
+                      mkdir -p ~/.kube &&
+                      sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config &&
+                      sudo chown ubuntu:ubuntu ~/.kube/config
+                    )
+
+                    # Clone or update repo
+                    cd ~/qrgenix || git clone https://github.com/$GIT_USER/qrgenix.git ~/qrgenix
+                    cd ~/qrgenix
+                    git pull
+
+                    # Apply manifests
                     kubectl apply -f k8s/staging
                   '
-                """
+                '''
               }
             }
+          }
           post {
             success { script { notifySlackSuccess("⚙️") } }
             failure { script { notifySlackFailure("❌") } }
           }
         }
-
 
         stage('Deploy to K3s') {
           when {

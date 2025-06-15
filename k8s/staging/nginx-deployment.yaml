@@ -27,5 +27,3 @@ spec:
         - name: nginx-config
           configMap:
             name: qrgenix-nginx-config
----
-

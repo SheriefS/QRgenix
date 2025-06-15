@@ -190,24 +190,28 @@ pipeline {
           }
             }
 
-            stage('Login to GHCR') {
+        stage('Login to GHCR') {
           when {
             expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) }
           }
           steps {
-            withCredentials([usernamePassword(credentialsId: 'ghcr-token', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN')]) {
-              sh '''
-            echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_USER" --password-stdin
-          '''
-            }
+            withCredentials([
+              string(credentialsId: 'ghcr-token', variable: 'GHCR_TOKEN'),
+              string(credentialsId: 'github-user', variable: 'GITHUB_USER')
+          ])
+              {
+                  sh '''
+                      echo $GHCR_TOKEN | docker login ghcr.io -u $GITHUB_USER --password-stdin
+                  '''
+              }
           }
           post {
             success { script { notifySlackSuccess('🔐') } }
             failure { script { notifySlackFailure('❌') } }
           }
-            }
+        }
 
-            stage('Push Backend Image') {
+        stage('Push Backend Image') {
           when {
             expression { fileExists(env.BACKEND_PENDING_FILE) }
           }
@@ -227,9 +231,9 @@ pipeline {
             }
             failure { script { notifySlackFailure('❌') } }
           }
-            }
+        }
 
-            stage('Push Frontend Image') {
+        stage('Push Frontend Image') {
           when {
             expression { fileExists(env.FRONTEND_PENDING_FILE) }
           }
@@ -249,9 +253,9 @@ pipeline {
             }
             failure { script { notifySlackFailure('❌') } }
           }
-            }
+        }
 
-            stage('Apply Staging K8s YAMLs') {
+        stage('Apply Staging K8s YAMLs') {
           when {
             expression {
               return fileExists(env.K8S_PENDING_FILE)
@@ -259,7 +263,10 @@ pipeline {
           }
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
-              withCredentials([usernamePassword(credentialsId: 'github-user', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+              withCredentials([
+                  string(credentialsId: 'github-user', variable: 'GIT_USER'),
+                  string(credentialsId: 'ghcr-token', variable: 'GIT_TOKEN')
+              ]) {
                 sh '''
               ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
                 [ -f ~/.kube/config ] || (
@@ -289,7 +296,7 @@ pipeline {
               notifySlackFailure('❌')
             }
           }
-            }
+        }
 
         stage('Deploy to K3s') {
           when {
@@ -317,7 +324,7 @@ pipeline {
             failure { script { notifySlackFailure('❌') } }
           }
         }
-      }
+        }
     }
   }
 

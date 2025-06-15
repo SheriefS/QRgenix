@@ -17,6 +17,7 @@ spec:
       containers:
         - name: backend
           image: ghcr.io/sheriefs/qrgenix-backend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           env:

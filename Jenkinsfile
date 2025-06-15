@@ -44,9 +44,10 @@ pipeline {
           sh 'npm ci'
           sh 'npm run test'
         }
-        script {
-          notifySlack("✅", "Stage Completed:* Test Frontend")
-        }
+      }
+      post {
+        success { script { notifySlackSuccess("✅") } }
+        failure { script { notifySlackFailure("❌") } }
       }
     }
 
@@ -65,9 +66,10 @@ pipeline {
           sh 'pip install -r requirements.txt'
           sh 'pytest --junitxml=results.xml --maxfail=1 --disable-warnings -q'
         }
-        script {
-          notifySlack("✅", "Stage Completed:* Test Backend")
-        }
+      }
+      post {
+        success { script { notifySlackSuccess("✅") } }
+        failure { script { notifySlackFailure("❌") } }
       }
     }
 
@@ -76,65 +78,175 @@ pipeline {
         branch 'main'
       }
       stages {
-
-        stage('Clean Up Previous Containers') {
+        stage('Detect Changes') {
           steps {
-            sh 'docker rm -f frontend-ci backend-ci || true'
             script {
-              notifySlack("🧹", "Stage Completed:* Clean Up Containers")
+              def changedFiles = sh(script: "git diff --name-only HEAD~1 HEAD", returnStdout: true).trim()
+
+              env.BACKEND_CHANGED = changedFiles.contains('backend-django/') ? 'true' : 'false'
+              env.FRONTEND_CHANGED = changedFiles.contains('frontend-vite/') ? 'true' : 'false'
+              env.K8S_CHANGED = changedFiles.readLines().any { it.startsWith('k8s/') } ? 'true' : 'false'
+
+
+              echo "Backend Changed: ${env.BACKEND_CHANGED}"
+              echo "Frontend Changed: ${env.FRONTEND_CHANGED}"
+              echo "K8s Config Changed: ${env.K8s_CHANGED}"
             }
           }
         }
 
-        stage('Build Containers') {
+        stage('Clean Up Frontend Container') {
+          when {
+            expression { env.FRONTEND_CHANGED == 'true' }
+          }
           steps {
-            sh 'docker compose -f docker-compose.ci.yml build'
-            script {
-              notifySlack("📦", "Stage Completed:* Build Containers")
-            }
+            sh 'docker rm -f frontend-ci || true'
+          }
+          post {
+            success { script { notifySlackSuccess("🧹") } }
+            failure { script { notifySlackFailure("❌") } }
+          }
+        }
+
+        stage('Clean Up Backend Container') {
+          when {
+            expression { env.BACKEND_CHANGED == 'true' }
+          }
+          steps {
+            sh 'docker rm -f backend-ci || true'
+          }
+          post {
+            success { script { notifySlackSuccess("🧹") } }
+            failure { script { notifySlackFailure("❌") } }
+          }
+        }
+
+        stage('Build Container Frontend Container') {
+          when {
+            expression { env.FRONTEND_CHANGED == 'true' }
+          } 
+          steps {
+            sh 'docker compose -f docker-compose.ci.yml build frontend'
+          }
+          post {
+            success { script { notifySlackSuccess("📦") } }
+            failure { script { notifySlackFailure("❌") } }
+          }
+        }
+
+        stage('Build Container Backend Container') {
+          when {
+            expression { env.BACKEND_CHANGED == 'true' }
+          } 
+          steps {
+            sh 'docker compose -f docker-compose.ci.yml build backend'
+          }
+          post {
+            success { script { notifySlackSuccess("📦") } }
+            failure { script { notifySlackFailure("❌") } }
           }
         }
 
         stage('Test Backend in Container') {
+          when {
+            expression { env.BACKEND_CHANGED == 'true' }
+          }
           steps {
             catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
               sh 'docker compose -f docker-compose.ci.yml run --rm backend'
             }
-            script {
-              notifySlack("🧪", "Stage Completed:* Backend Test in Container")
-            }
+          }
+          post {
+            success { script { notifySlackSuccess("🧪") } }
+            failure { script { notifySlackFailure("❌") } }
           }
         }
 
         stage('Test Frontend in Container') {
+          when {
+            expression { env.FRONTEND_CHANGED == 'true' }
+          }
           steps {
             catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
               sh 'docker compose -f docker-compose.ci.yml run --rm frontend'
             }
-            script {
-              notifySlack("🧪", "Stage Completed:* Frontend Test in Container")
-            }
+          }
+          post {
+            success { script { notifySlackSuccess("🧪") } }
+            failure { script { notifySlackFailure("❌") } }
           }
         }
 
         stage('Push Backend Image') {
+          when {
+            expression { env.BACKEND_CHANGED == 'true' }
+          }
           steps {
             sh 'echo $GHCR_TOKEN | docker login ghcr.io -u $GITHUB_USER --password-stdin'
             sh 'docker tag qrgenix-backend-ci $GHCR_REGISTRY/$GITHUB_USER/${REPO}-backend:latest'
             sh 'docker push $GHCR_REGISTRY/$GITHUB_USER/${REPO}-backend:latest'
-            script {
-              notifySlack("🚀", "Stage Completed:* Pushed Backend Image")
-            }
+          }
+          post {
+            success { script { notifySlackSuccess("🚀") } }
+            failure { script { notifySlackFailure("❌") } }
           }
         }
 
         stage('Push Frontend Image') {
+          when {
+            expression { env.FRONTEND_CHANGED == 'true' }
+          }
           steps {
             sh 'docker tag qrgenix-frontend-ci $GHCR_REGISTRY/$GITHUB_USER/${REPO}-frontend:latest'
             sh 'docker push $GHCR_REGISTRY/$GITHUB_USER/${REPO}-frontend:latest'
-            script {
-              notifySlack("🚀", "Stage Completed:* Pushed Frontend Image")
+          }
+          post {
+            success { script { notifySlackSuccess("🚀") } }
+            failure { script { notifySlackFailure("❌") } }
+          }
+        }
+
+        stage('Apply Staging K8s YAMLs') {
+          when {
+            expression { env.K8S_CHANGED == 'true' }
+          }
+            steps {
+              sshagent(credentials: ['ec2-ssh-key']) {
+                sh """
+                  ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
+                    cd ~/qrgenix || git clone https://github.com/$GITHUB_USER/qrgenix.git ~/qrgenix &&
+                    cd ~/qrgenix &&
+                    git pull &&
+                    kubectl apply -f k8s/staging
+                  '
+                """
+              }
             }
+          post {
+            success { script { notifySlackSuccess("⚙️") } }
+            failure { script { notifySlackFailure("❌") } }
+          }
+        }
+
+
+        stage('Deploy to K3s') {
+          when {
+            expression { env.BACKEND_CHANGED == 'true' || env.FRONTEND_CHANGED == 'true' }
+          }
+          steps {
+            sshagent(credentials: ['ec2-ssh-key']) {
+              sh """
+                ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
+                  ${env.BACKEND_CHANGED == 'true' ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-backend:latest && kubectl rollout restart deployment qrgenix-backend -n qrgenix &&" : ""}
+                  ${env.FRONTEND_CHANGED == 'true' ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-frontend:latest && kubectl rollout restart deployment qrgenix-frontend -n qrgenix &&" : ""}
+                  echo "Deployment Complete"
+                '
+              """
+            }
+          }
+          post {
+            success { script { notifySlackSuccess("🚢") } }
+            failure { script { notifySlackFailure("❌") } }
           }
         }
       }
@@ -142,21 +254,23 @@ pipeline {
   }
 
   post {
-    failure {
-      notifySlack("❌", "Failed")
-    }
-    success {
-      notifySlack("✅", "Succeeded")
-    }
+    failure { notifySlack("❌", "Pipeline Failed") }
+    success { notifySlack("✅", "Pipeline Succeeded") }
   }
 }
 
 def notifySlack(String emoji, String status) {
   def message = "${emoji} *QRgenix Pipeline ${status}*\n*Job:* ${env.JOB_NAME}\n*Build:* #${env.BUILD_NUMBER}\n<${env.BUILD_URL}|View Build>"
-  
   sh """
     curl -X POST -H 'Content-type: application/json' \
     --data '{"text": "${message}"}' "$SLACK_WEBHOOK"
   """
 }
 
+def notifySlackFailure(String emoji) {
+  notifySlack(emoji, "Stage Failed:* ${env.STAGE_NAME}")
+}
+
+def notifySlackSuccess(String emoji) {
+  notifySlack(emoji, "Stage Succeeded:* ${env.STAGE_NAME}")
+}

@@ -225,10 +225,7 @@ pipeline {
           post {
             success {
               script {
-                sh "rm -f ${env.BACKEND_PENDING_FILE}"
-                notifySlackSuccess('🚀')
-              }
-            }
+            success { script { notifySlackSuccess('🚀') } }
             failure { script { notifySlackFailure('❌') } }
           }
         }
@@ -245,12 +242,7 @@ pipeline {
             }
           }
           post {
-            success {
-              script {
-                sh "rm -f ${env.FRONTEND_PENDING_FILE}"
-                notifySlackSuccess('🚀 Frontend')
-              }
-            }
+            success { script { notifySlackSuccess('🚀') } }
             failure { script { notifySlackFailure('❌') } }
           }
         }
@@ -292,9 +284,7 @@ pipeline {
                 notifySlackSuccess('⚙️')
               }
             }
-            failure {
-              notifySlackFailure('❌')
-            }
+            failure { script { notifySlackFailure('❌') } }
           }
         }
 
@@ -304,13 +294,12 @@ pipeline {
           }
           steps {
             script {
-              def backendCmd = fileExists(env.BACKEND_PENDING_FILE) ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-backend:latest && kubectl rollout restart deployment qrgenix-backend -n qrgenix &&" : ''
-              def frontendCmd = fileExists(env.FRONTEND_PENDING_FILE) ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-frontend:latest && kubectl rollout restart deployment qrgenix-frontend -n qrgenix &&" : ''
+              def backendCmd = fileExists(env.BACKEND_PENDING_FILE) ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-backend:latest && kubectl rollout restart deployment qrgenix-backend -n qrgenix && rm -f ${env.BACKEND_PENDING_FILE} &&" : ''
+              def frontendCmd = fileExists(env.FRONTEND_PENDING_FILE) ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-frontend:latest && kubectl rollout restart deployment qrgenix-frontend -n qrgenix && rm -f ${env.FRONTEND_PENDING_FILE} &&" : ''
 
               sshagent(credentials: ['ec2-ssh-key']) {
                 sh """
                   ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
-                    /* groovylint-disable-next-line LineLength */
                     ${backendCmd}
                     ${frontendCmd}
                     echo "Deployment Complete"
@@ -320,8 +309,8 @@ pipeline {
             }
           }
           post {
-            success { script { notifySlackSuccess('🚢') } }
-            failure { script { notifySlackFailure('❌') } }
+            success { script { notifySlackSuccess('🚢 Deployed') } }
+            failure { script { notifySlackFailure('❌ Deployment') } }
           }
         }
         }

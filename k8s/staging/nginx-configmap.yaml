@@ -1,4 +1,3 @@
-# Nginx ConfigMap
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,16 +7,29 @@ metadata:
 data:
   nginx.conf: |
     events {}
+
     http {
-      server {
-        listen 80;
-
-        location /api/ {
-          proxy_pass http://qrgenix-backend.qrgenix.svc.cluster.local:8000/;
+        upstream frontend {
+            server qrgenix-frontend.qrgenix.svc.cluster.local:5173;
         }
 
-        location /app/ {
-          proxy_pass http://qrgenix-frontend.qrgenix.svc.cluster.local:5173/;
+        upstream backend {
+            server qrgenix-backend.qrgenix.svc.cluster.local:8000;
         }
-      }
+
+        server {
+            listen 80;
+
+            location / {
+                proxy_pass http://frontend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+
+            location /api/ {
+                proxy_pass http://backend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+        }
     }

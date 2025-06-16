@@ -1,16 +1,19 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: qrgenix-ingress
+  name: qrgenix-ingress-http
   namespace: qrgenix
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: qrgenix-redirect-to-https@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
     - host: qrgenix.duckdns.org
       http:
         paths:
-          - pathType: Prefix
-            path: "/"
+          - path: /
+            pathType: Prefix
             backend:
               service:
                 name: qrgenix-nginx

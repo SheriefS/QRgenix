@@ -1,0 +1,10 @@
+# k8s/staging/redirect-https.yaml
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-to-https
+  namespace: qrgenix
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true

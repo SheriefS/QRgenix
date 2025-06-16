@@ -1,0 +1,48 @@
+# traefik-values.yaml
+
+additionalArguments:
+  - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+  - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+  - "--certificatesresolvers.letsencrypt.acme.email=lunarn8.io@gmail.com"
+  - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
+
+ports:
+  web:
+    port: 80
+    expose:
+      default: true
+    exposedPort: 80
+    protocol: TCP
+
+  websecure:
+    port: 443
+    expose:
+      default: true
+    exposedPort: 443
+    protocol: TCP
+
+ingressRoute:
+  dashboard:
+    enabled: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+persistence:
+  enabled: true
+  name: data
+  accessMode: ReadWriteOnce
+  size: 128Mi
+  path: /data
+  storageClass: ""
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: lunarn8.io@gmail.com
+      storage: /data/acme.json
+      httpChallenge:
+        entryPoint: web

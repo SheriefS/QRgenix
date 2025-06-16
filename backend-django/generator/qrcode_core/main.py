@@ -1,8 +1,6 @@
 import sys
 from pathlib import Path
 
-# Test backend Git Trigger
-
 # Add the root directory to sys.path to import from app/
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 

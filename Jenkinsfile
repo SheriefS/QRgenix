@@ -292,8 +292,8 @@ pipeline {
           }
           steps {
             script {
-              def backendCmd = fileExists(env.BACKEND_PENDING_FILE) ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-backend:latest && kubectl rollout restart deployment qrgenix-backend -n qrgenix && rm -f ${env.BACKEND_PENDING_FILE} &&" : ''
-              def frontendCmd = fileExists(env.FRONTEND_PENDING_FILE) ? "docker pull ghcr.io/$GITHUB_USER/${REPO}-frontend:latest && kubectl rollout restart deployment qrgenix-frontend -n qrgenix && rm -f ${env.FRONTEND_PENDING_FILE} &&" : ''
+              def backendCmd = fileExists(env.BACKEND_PENDING_FILE) ? "kubectl rollout restart deployment qrgenix-backend -n qrgenix && rm -f ${env.BACKEND_PENDING_FILE} &&" : ''
+              def frontendCmd = fileExists(env.FRONTEND_PENDING_FILE) ? "kubectl rollout restart deployment qrgenix-frontend -n qrgenix && rm -f ${env.FRONTEND_PENDING_FILE} &&" : ''
 
               sshagent(credentials: ['ec2-ssh-key']) {
                 sh """
@@ -311,7 +311,7 @@ pipeline {
             failure { script { notifySlackFailure('❌ Deployment') } }
           }
         }
-        }
+      }
     }
   }
 

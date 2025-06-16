@@ -1,0 +1,27 @@
+# ingress-https.yaml
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: qrgenix-ingress-https
+  namespace: qrgenix
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: qrgenix.duckdns.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: qrgenix-nginx
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - qrgenix.duckdns.org

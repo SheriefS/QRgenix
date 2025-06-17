@@ -246,71 +246,96 @@ pipeline {
         }
 
         stage('Apply Staging K8s YAMLs') {
-          when {
-            expression {
-              return fileExists(env.K8S_PENDING_FILE)
-            }
-          }
+          when { expression { return fileExists(env.K8S_PENDING_FILE) } }
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
-              withCredentials([
-                  string(credentialsId: 'github-user', variable: 'GIT_USER'),
-                  string(credentialsId: 'ghcr-token', variable: 'GIT_TOKEN')
-              ]) {
-                sh '''
-              ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
-                [ -f ~/.kube/config ] || (
-                  mkdir -p ~/.kube &&
-                  sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config &&
-                  sudo chown ubuntu:ubuntu ~/.kube/config
-                )
-
-                cd ~/qrgenix || git clone https://github.com/$GIT_USER/qrgenix.git ~/qrgenix
-                cd ~/qrgenix
-                git pull
-
-                kubectl apply -f k8s/staging
-              '
-            '''
-              }
+              sh 'ansible-playbook -i inventory/hosts.ini apply-manifests.yaml'
             }
-          }
-          post {
-            success {
-              script {
-                sh "rm -f ${env.K8S_PENDING_FILE}"
-                notifySlackSuccess('⚙️')
-              }
-            }
-            failure { script { notifySlackFailure('❌') } }
           }
         }
 
         stage('Deploy to K3s') {
-          when {
-            expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) }
-          }
+          when { expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) } }
           steps {
-            script {
-              def backendCmd = fileExists(env.BACKEND_PENDING_FILE) ? "kubectl rollout restart deployment qrgenix-backend -n qrgenix && rm -f ${env.BACKEND_PENDING_FILE} &&" : ''
-              def frontendCmd = fileExists(env.FRONTEND_PENDING_FILE) ? "kubectl rollout restart deployment qrgenix-frontend -n qrgenix && rm -f ${env.FRONTEND_PENDING_FILE} &&" : ''
-
-              sshagent(credentials: ['ec2-ssh-key']) {
-                sh """
-                  ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
-                    ${backendCmd}
-                    ${frontendCmd}
-                    echo "Deployment Complete"
-                  '
-                """
+            sshagent(credentials: ['ec2-ssh-key']) {
+              script {
+                if (fileExists(env.BACKEND_PENDING_FILE)) {
+                  sh 'ansible-playbook -i inventory/hosts.ini restart-backend.yaml'
+                }
+                if (fileExists(env.FRONTEND_PENDING_FILE)) {
+                  sh 'ansible-playbook -i inventory/hosts.ini restart-frontend.yaml'
+                }
               }
             }
           }
-          post {
-            success { script { notifySlackSuccess('🚢 Deployed') } }
-            failure { script { notifySlackFailure('❌ Deployment') } }
-          }
         }
+
+        // stage('Apply Staging K8s YAMLs') {
+        //   when {
+        //     expression {
+        //       return fileExists(env.K8S_PENDING_FILE)
+        //     }
+        //   }
+        //   steps {
+        //     sshagent(credentials: ['ec2-ssh-key']) {
+        //       withCredentials([
+        //           string(credentialsId: 'github-user', variable: 'GIT_USER'),
+        //           string(credentialsId: 'ghcr-token', variable: 'GIT_TOKEN')
+        //       ]) {
+        //         sh '''
+        //       ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
+        //         [ -f ~/.kube/config ] || (
+        //           mkdir -p ~/.kube &&
+        //           sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config &&
+        //           sudo chown ubuntu:ubuntu ~/.kube/config
+        //         )
+
+        //         cd ~/qrgenix || git clone https://github.com/$GIT_USER/qrgenix.git ~/qrgenix
+        //         cd ~/qrgenix
+        //         git pull
+
+        //         kubectl apply -f k8s/staging
+        //       '
+        //     '''
+        //       }
+        //     }
+        //   }
+        //   post {
+        //     success {
+        //       script {
+        //         sh "rm -f ${env.K8S_PENDING_FILE}"
+        //         notifySlackSuccess('⚙️')
+        //       }
+        //     }
+        //     failure { script { notifySlackFailure('❌') } }
+        //   }
+        // }
+
+        // stage('Deploy to K3s') {
+        //   when {
+        //     expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) }
+        //   }
+        //   steps {
+        //     script {
+        //       def backendCmd = fileExists(env.BACKEND_PENDING_FILE) ? "kubectl rollout restart deployment qrgenix-backend -n qrgenix && rm -f ${env.BACKEND_PENDING_FILE} &&" : ''
+        //       def frontendCmd = fileExists(env.FRONTEND_PENDING_FILE) ? "kubectl rollout restart deployment qrgenix-frontend -n qrgenix && rm -f ${env.FRONTEND_PENDING_FILE} &&" : ''
+
+        //       sshagent(credentials: ['ec2-ssh-key']) {
+        //         sh """
+        //           ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
+        //             ${backendCmd}
+        //             ${frontendCmd}
+        //             echo "Deployment Complete"
+        //           '
+        //         """
+        //       }
+        //     }
+        //   }
+        //   post {
+        //     success { script { notifySlackSuccess('🚢 Deployed') } }
+        //     failure { script { notifySlackFailure('❌ Deployment') } }
+        //   }
+        // }
       }
     }
   }

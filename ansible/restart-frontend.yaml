@@ -1,0 +1,5 @@
+- name: Restart QRgenix Frontend
+  hosts: qrgenix
+  become: true
+  roles:
+    - frontend

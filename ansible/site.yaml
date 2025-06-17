@@ -1,0 +1,14 @@
+# site.yaml
+- name: Initial QRgenix Setup
+  hosts: qrgenix
+  become: true
+  roles:
+    - common
+    - docker
+    - k3s
+    - nginx
+    - helm
+    - traefik
+    - k8s
+    - frontend
+    - backend

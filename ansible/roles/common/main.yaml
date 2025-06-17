@@ -1,0 +1,26 @@
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Upgrade all packages
+  apt:
+    upgrade: dist
+
+- name: Install essential packages
+  apt:
+    name:
+      - curl
+      - vim
+      - git
+      - ufw
+    state: present
+
+- name: Enable UFW and allow SSH
+  ufw:
+    rule: allow
+    name: OpenSSH
+
+- name: Ensure UFW is enabled
+  ufw:
+    state: enabled
+    policy: deny

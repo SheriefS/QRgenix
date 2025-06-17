@@ -1,0 +1,21 @@
+- name: Create namespace for Traefik
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: traefik
+    state: present
+
+- name: Add Traefik Helm repo
+  command: helm repo add traefik https://traefik.github.io/charts
+  args:
+    creates: /root/.cache/helm/repository/traefik-index.yaml
+
+- name: Update Helm repos
+  command: helm repo update
+
+- name: Deploy Traefik via Helm
+  command: >
+    helm install traefik traefik/traefik
+    --namespace traefik
+    --create-namespace
+    -f ../../../helm/traefik-values.yaml

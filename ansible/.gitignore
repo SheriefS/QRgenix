@@ -1,0 +1,6 @@
+# Ignore Ansible cache and secrets
+*.retry
+*.pem
+*.key
+*.vault
+__pycache__/

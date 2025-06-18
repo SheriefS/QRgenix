@@ -1,9 +1,4 @@
-- name: Ensure qrgenix namespace exists
-  kubernetes.core.k8s:
-    api_version: v1
-    kind: Namespace
-    name: qrgenix
-    state: present
+# roles/k8s/tasks/main.yaml
 
 - name: Copy staging manifests into role folder
   copy:
@@ -11,16 +6,18 @@
     dest: "{{ playbook_dir }}/roles/k8s/files/staging/"
     mode: "0644"
     recurse: yes
+  delegate_to: localhost
+  run_once: true
 
 - name: Sync latest nginx.conf into k8s staging folder
   copy:
     src: "{{ playbook_dir }}/../nginx/nginx.conf"
     dest: "{{ playbook_dir }}/roles/k8s/files/staging/nginx.conf"
     mode: "0644"
-
-- name: Generate Nginx ConfigMap from local nginx.conf
   delegate_to: localhost
   run_once: true
+
+- name: Generate Nginx ConfigMap from local nginx.conf
   shell: |
     kubectl create configmap qrgenix-nginx-config \
       --namespace=qrgenix \
@@ -28,18 +25,35 @@
       --dry-run=client -o yaml > roles/k8s/files/staging/nginx-configmap.yaml
   args:
     chdir: "{{ playbook_dir }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Ensure qrgenix namespace exists
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: qrgenix
+    state: present
+  delegate_to: localhost
+  run_once: true
 
 - name: Apply ConfigMap first
   kubernetes.core.k8s:
     state: present
     src: roles/k8s/files/staging/nginx-configmap.yaml
+  delegate_to: localhost
+  run_once: true
 
 - name: Apply remaining manifests
   kubernetes.core.k8s:
     state: present
-    src: roles/k8s/files/staging/"
+    src: roles/k8s/files/staging/
+  delegate_to: localhost
+  run_once: true
 
 - name: Clean up copied staging manifests
   file:
     path: "{{ playbook_dir }}/roles/k8s/files/staging/"
     state: absent
+  delegate_to: localhost
+  run_once: true

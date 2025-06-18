@@ -1,0 +1,23 @@
+- name: Install dependencies for Helm
+  apt:
+    name:
+      - apt-transport-https
+      - gnupg
+    state: present
+
+- name: Add Helm GPG key
+  shell: curl https://baltocdn.com/helm/signing.asc | gpg --dearmor -o /usr/share/keyrings/helm.gpg
+  args:
+    creates: /usr/share/keyrings/helm.gpg
+
+- name: Add Helm repo
+  copy:
+    dest: /etc/apt/sources.list.d/helm-stable-debian.list
+    content: |
+      deb [signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main
+
+- name: Update apt and install Helm
+  apt:
+    update_cache: yes
+    name: helm
+    state: present

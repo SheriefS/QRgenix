@@ -8,16 +8,37 @@ metadata:
 data:
   nginx.conf: |
     events {}
+
     http {
+      upstream frontend {
+        server qrgenix-frontend.qrgenix.svc.cluster.local:5173;
+        keepalive 8;
+      }
+      upstream backend {
+        server qrgenix-backend.qrgenix.svc.cluster.local:8000;
+        keepalive 8;
+      }
       server {
         listen 80;
 
         location /api/ {
-          proxy_pass http://qrgenix-backend.qrgenix.svc.cluster.local:8000/;
+          proxy_pass http://backend/;
+          proxy_http_version 1.1;
+          proxy_set_header Connection "";
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
         }
 
-        location /app/ {
-          proxy_pass http://qrgenix-frontend.qrgenix.svc.cluster.local:5173/;
+        location / {
+          proxy_pass http://frontend;
+          proxy_http_version 1.1;
+          proxy_set_header Connection "";
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
         }
       }
     }

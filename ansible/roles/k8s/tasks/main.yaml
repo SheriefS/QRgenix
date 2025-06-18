@@ -8,6 +8,7 @@
     recurse: yes
   delegate_to: localhost
   run_once: true
+  become: false
 
 - name: Sync latest nginx.conf into k8s staging folder
   copy:
@@ -16,7 +17,7 @@
     mode: "0644"
   delegate_to: localhost
   run_once: true
-
+  
 - name: Generate Nginx ConfigMap from local nginx.conf
   shell: |
     kubectl create configmap qrgenix-nginx-config \
@@ -27,6 +28,7 @@
     chdir: "{{ playbook_dir }}"
   delegate_to: localhost
   run_once: true
+  become: false
 
 - name: Ensure qrgenix namespace exists
   kubernetes.core.k8s:
@@ -36,6 +38,7 @@
     state: present
   delegate_to: localhost
   run_once: true
+  become: false
 
 - name: Apply ConfigMap first
   kubernetes.core.k8s:
@@ -44,12 +47,15 @@
   delegate_to: localhost
   run_once: true
 
+  become: false
+
 - name: Apply remaining manifests
   kubernetes.core.k8s:
     state: present
     src: roles/k8s/files/staging/
   delegate_to: localhost
   run_once: true
+  become: false
 
 - name: Clean up copied staging manifests
   file:
@@ -57,3 +63,4 @@
     state: absent
   delegate_to: localhost
   run_once: true
+  become: false

@@ -272,16 +272,10 @@ pipeline {
             sshagent(credentials: ['ec2-ssh-key']) {
               script {
                 if (fileExists(env.BACKEND_PENDING_FILE)) {
-                  sh '''
-                    cd ansible
-                    ansible-playbook -i inventory/hosts.ini restart-backend.yaml'
-                  '''
+                  sh 'scripts/run_ansible.sh restart-backend.yaml'
                 }
                 if (fileExists(env.FRONTEND_PENDING_FILE)) {
-                  sh '''
-                    cd ansible
-                    ansible-playbook -i inventory/hosts.ini restart-frontend.yaml
-                  '''
+                  sh 'scripts/run_ansible.sh restart-frontend.yaml'
                 }
               }
             }

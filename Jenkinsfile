@@ -249,10 +249,7 @@ pipeline {
           when { expression { return fileExists(env.K8S_PENDING_FILE) } }
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
-              sh '''
-                cd ansible
-                ansible-playbook -i inventory/hosts.ini apply-manifests.yaml
-              '''
+              sh 'scripts/run_ansible.sh apply-manifests.yaml'
             }
           }
           post {

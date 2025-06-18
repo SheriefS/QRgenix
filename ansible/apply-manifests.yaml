@@ -1,5 +1,5 @@
 - name: Apply QRgenix K8s Manifests
   hosts: qrgenix
-  become: true
+  become: false
   roles:
     - k8s

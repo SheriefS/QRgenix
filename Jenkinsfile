@@ -249,8 +249,20 @@ pipeline {
           when { expression { return fileExists(env.K8S_PENDING_FILE) } }
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
-              sh 'ansible-playbook -i inventory/hosts.ini apply-manifests.yaml'
+              sh '''
+                cd ansible
+                ansible-playbook -i inventory/hosts.ini apply-manifests.yaml
+              '''
             }
+          }
+          post {
+            success {
+              script {
+                sh "rm -f ${env.K8S_PENDING_FILE}"
+                notifySlackSuccess('⚙️')
+              }
+            }
+            failure { script { notifySlackFailure('❌') } }
           }
         }
 
@@ -260,13 +272,26 @@ pipeline {
             sshagent(credentials: ['ec2-ssh-key']) {
               script {
                 if (fileExists(env.BACKEND_PENDING_FILE)) {
-                  sh 'ansible-playbook -i inventory/hosts.ini restart-backend.yaml'
+                  sh '''
+                    cd ansible
+                    ansible-playbook -i inventory/hosts.ini restart-backend.yaml'
+                  '''
                 }
                 if (fileExists(env.FRONTEND_PENDING_FILE)) {
-                  sh 'ansible-playbook -i inventory/hosts.ini restart-frontend.yaml'
+                  sh '''
+                    cd ansible
+                    ansible-playbook -i inventory/hosts.ini restart-frontend.yaml
+                  '''
                 }
               }
             }
+          }
+          post {
+            success { script {
+                sh "rm -f ${env.BACKEND_PENDING_FILE}"
+                sh "rm -f ${env.FRONTEND_PENDING_FILE}"
+                notifySlackSuccess('🚢 Deployed') } }
+            failure { script { notifySlackFailure('❌ Deployment') } }
           }
         }
 
@@ -336,7 +361,7 @@ pipeline {
         //     failure { script { notifySlackFailure('❌ Deployment') } }
         //   }
         // }
-      }
+        }
     }
   }
 

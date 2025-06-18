@@ -252,6 +252,15 @@ pipeline {
               sh 'ansible-playbook -i inventory/hosts.ini apply-manifests.yaml'
             }
           }
+          post {
+            success {
+              script {
+                sh "rm -f ${env.K8S_PENDING_FILE}"
+                notifySlackSuccess('⚙️')
+              }
+            }
+            failure { script { notifySlackFailure('❌') } }
+          }
         }
 
         stage('Deploy to K3s') {
@@ -267,6 +276,13 @@ pipeline {
                 }
               }
             }
+          }
+          post {
+            success { script {
+                sh "rm -f ${env.BACKEND_PENDING_FILE}"
+                sh "rm -f ${env.FRONTEND_PENDING_FILE}"
+                notifySlackSuccess('🚢 Deployed') } }
+            failure { script { notifySlackFailure('❌ Deployment') } }
           }
         }
 
@@ -336,7 +352,7 @@ pipeline {
         //     failure { script { notifySlackFailure('❌ Deployment') } }
         //   }
         // }
-      }
+        }
     }
   }
 

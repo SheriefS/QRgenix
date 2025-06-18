@@ -17,8 +17,7 @@
     mode: "0644"
   delegate_to: localhost
   run_once: true
-  become: false
-
+  
 - name: Generate Nginx ConfigMap from local nginx.conf
   shell: |
     kubectl create configmap qrgenix-nginx-config \
@@ -47,6 +46,7 @@
     src: roles/k8s/files/staging/nginx-configmap.yaml
   delegate_to: localhost
   run_once: true
+
   become: false
 
 - name: Apply remaining manifests

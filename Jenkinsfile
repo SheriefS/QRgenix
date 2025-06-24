@@ -252,6 +252,10 @@ pipeline {
               echo 🛠️ Preparing NGINX config for Ansible
               mkdir -p ansible/roles/nginx/files
               cp nginx/nginx.conf ansible/roles/nginx/files/nginx.conf
+              echo 🛠️ Preparing K8s manifests
+              mkdir -p ansible/tmp/k8s
+              cp nginx/nginx.conf ansible/tmp/k8s/
+              cp k8s/staging/*.yaml ansible/tmp/k8s/
             '''
             sshagent(credentials: ['ec2-ssh-key']) {
               sh 'scripts/run_ansible.sh site.yaml'

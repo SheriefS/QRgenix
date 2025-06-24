@@ -1,7 +1,16 @@
 # roles/frontend/tasks/main.yaml
-- name: Pull latest frontend container image
 
-  shell: docker pull ghcr.io/{{ ghcr_user }}/qrgenix-frontend:latest
+- name: Log in to GitHub Container Registry
+  community.docker.docker_login:
+    registry_url: ghcr.io
+    username: "{{ ghcr_username }}"
+    password: "{{ ghcr_pat }}"
+
+- name: Pull latest frontend container image
+  shell: docker pull ghcr.io/{{ ghcr_username }}/qrgenix-frontend:latest
+  register: frontend_pull
+  failed_when: frontend_pull.rc != 0
+  changed_when: "'Downloaded newer image' in frontend_pull.stdout"
 
 - name: Restart frontend deployment in Kubernetes
   shell: kubectl rollout restart deployment qrgenix-frontend -n qrgenix

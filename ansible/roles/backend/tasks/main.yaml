@@ -1,7 +1,16 @@
 # roles/backend/tasks/main.yaml
-- name: Pull latest backend container image
 
-  shell: docker pull ghcr.io/{{ ghcr_user }}/qrgenix-backend:latest
+- name: Log in to GitHub Container Registry
+  community.docker.docker_login:
+    registry_url: ghcr.io
+    username: "{{ ghcr_username }}"
+    password: "{{ ghcr_pat }}"
+
+- name: Pull latest backend container image
+  shell: docker pull ghcr.io/{{ ghcr_username }}/qrgenix-backend:latest
+  register: backend_pull
+  failed_when: backend_pull.rc != 0
+  changed_when: "'Downloaded newer image' in backend_pull.stdout"
 
 - name: Restart backend deployment in Kubernetes
   shell: kubectl rollout restart deployment qrgenix-backend -n qrgenix

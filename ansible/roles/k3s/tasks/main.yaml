@@ -1,16 +1,45 @@
-- name: Download K3s installer script
-  get_url:
-    url: https://get.k3s.io
-    dest: /tmp/install-k3s.sh
-    mode: "0755"
-
-- name: Install K3s
-  shell: /tmp/install-k3s.sh
+- name: Generate Nginx ConfigMap from nginx.conf
+  shell: |
+    kubectl create configmap qrgenix-nginx-config \
+      --namespace=qrgenix \
+      --from-file=nginx.conf=tmp/k8s/nginx.conf \
+      --dry-run=client -o yaml > tmp/k8s/nginx-configmap.yaml
   args:
-    creates: /usr/local/bin/k3s
+    chdir: "{{ playbook_dir }}"
+  delegate_to: localhost
+  run_once: true
+  become: false
 
-- name: Enable and start k3s
-  systemd:
-    name: k3s
-    state: started
-    enabled: true
+- name: Ensure qrgenix namespace exists
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: qrgenix
+    state: present
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Apply ConfigMap first
+  kubernetes.core.k8s:
+    state: present
+    src: tmp/k8s/nginx-configmap.yaml
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Apply remaining manifests
+  kubernetes.core.k8s:
+    state: present
+    src: tmp/k8s/
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Clean up tmp folder
+  file:
+    path: "{{ playbook_dir }}/tmp/k8s/"
+    state: absent
+  delegate_to: localhost
+  run_once: true
+  become: false

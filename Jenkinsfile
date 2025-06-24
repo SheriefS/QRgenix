@@ -245,21 +245,20 @@ pipeline {
           }
         }
 
-        stage('Prepare NGINX Config') {
-          when { expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) || fileExists(env.K8S_PENDING_FILE) } }
+        stage('Prepare K8s Manifests') {
           steps {
             sh '''
-              echo 🛠️ Preparing NGINX config for Ansible
+              echo "🛠️ Preparing NGINX config for Ansible"
               mkdir -p ansible/roles/nginx/files
               cp nginx/nginx.conf ansible/roles/nginx/files/nginx.conf
-              echo 🛠️ Preparing K8s manifests
-              mkdir -p ansible/tmp/k8s
-              cp nginx/nginx.conf ansible/tmp/k8s/
-              cp k8s/staging/*.yaml ansible/tmp/k8s/
+              echo "🛠️ Preparing K8s manifests for Ansible"
+              mkdir -p ansible/roles/k8s/files/staging
+              cp k8s/staging/*.yaml ansible/roles/k8s/files/staging/
             '''
-            sshagent(credentials: ['ec2-ssh-key']) {
-              sh 'scripts/run_ansible.sh site.yaml'
-            }
+          }
+          post {
+            success { script { notifySlackSuccess('🚀') } }
+            failure { script { notifySlackFailure('❌') } }
           }
         }
 

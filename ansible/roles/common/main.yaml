@@ -24,3 +24,8 @@
   ufw:
     state: enabled
     policy: deny
+
+- name: Ensure rsync is installed
+  apt:
+    name: rsync
+    state: present

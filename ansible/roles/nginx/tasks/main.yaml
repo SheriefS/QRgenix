@@ -6,15 +6,9 @@
     state: directory
     mode: "0755"
 
-- name: Sync latest nginx.conf into nginx folder
-  copy:
-    src: "{{ playbook_dir }}/../nginx/nginx.conf"
-    dest: "{{ playbook_dir }}/roles/nginx/files/nginx.conf"
-    mode: "0644"
-
 - name: Copy nginx config to target
   copy:
-    src: "{{ playbook_dir }}/roles/nginx/files/nginx.conf"
+    src: nginx.conf
     dest: /opt/nginx/nginx.conf
     mode: "0644"
 
@@ -28,8 +22,3 @@
       - "80:80"
     volumes:
       - /opt/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-
-- name: Clean up copied staging manifests
-  file:
-    path: "{{ playbook_dir }}/roles/nginx/files/"
-    state: absent

@@ -246,7 +246,7 @@ pipeline {
         }
 
         stage('Prepare NGINX Config') {
-          when { expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) || expression { return fileExists(env.K8S_PENDING_FILE)  } }
+          when { expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) || fileExists(env.K8S_PENDING_FILE) }
           steps {
             sh '''
               scripts/run_ansible.sh site.yaml

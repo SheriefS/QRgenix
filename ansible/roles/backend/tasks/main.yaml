@@ -1,6 +1,6 @@
 # roles/backend/tasks/main.yaml
 - name: Pull latest backend container image
-  shell: docker pull ghcr.io/<your-user>/qrgenix-backend:latest
+  shell: docker pull ghcr.io/{{ ghcr-user }}/qrgenix-backend:latest
   args:
     warn: false
 

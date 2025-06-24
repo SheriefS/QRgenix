@@ -249,11 +249,13 @@ pipeline {
           when { expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) || fileExists(env.K8S_PENDING_FILE) } }
           steps {
             sh '''
-              scripts/run_ansible.sh site.yaml
               echo 🛠️ Preparing NGINX config for Ansible
               mkdir -p ansible/roles/nginx/files
               cp nginx/nginx.conf ansible/roles/nginx/files/nginx.conf
             '''
+            sshagent(credentials: ['ec2-ssh-key']) {
+              sh 'scripts/run_ansible.sh site.yaml'
+            }
           }
         }
 

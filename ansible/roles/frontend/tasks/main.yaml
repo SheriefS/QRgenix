@@ -1,10 +1,6 @@
 # roles/frontend/tasks/main.yaml
 - name: Pull latest frontend container image
   shell: docker pull ghcr.io/{{ ghcr_user }}/qrgenix-frontend:latest
-  args:
-    warn: false
 
 - name: Restart frontend deployment in Kubernetes
   shell: kubectl rollout restart deployment qrgenix-frontend -n qrgenix
-  args:
-    warn: false

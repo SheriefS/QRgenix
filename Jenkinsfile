@@ -245,6 +245,18 @@ pipeline {
           }
         }
 
+        stage('Prepare NGINX Config') {
+          when { expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) || expression { return fileExists(env.K8S_PENDING_FILE)  } }
+          steps {
+            sh '''
+              scripts/run_ansible.sh site.yaml
+              echo 🛠️ Preparing NGINX config for Ansible
+              mkdir -p ansible/roles/nginx/files
+              cp nginx/nginx.conf ansible/roles/nginx/files/nginx.conf
+            '''
+          }
+        }
+
         stage('Apply Staging K8s YAMLs') {
           when { expression { return fileExists(env.K8S_PENDING_FILE) } }
           steps {
@@ -269,8 +281,6 @@ pipeline {
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
               script {
-                sh 'scripts/run_ansible.sh site.yaml'
-
                 if (fileExists(env.BACKEND_PENDING_FILE)) {
                   sh 'scripts/run_ansible.sh restart-backend.yaml'
                 }

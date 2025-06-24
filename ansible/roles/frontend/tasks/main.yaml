@@ -1,6 +1,7 @@
 # roles/frontend/tasks/main.yaml
 - name: Pull latest frontend container image
-  shell: docker pull ghcr.io/{{ ghcr-user }}/qrgenix-frontend:latest
+
+  shell: docker pull ghcr.io/{{ ghcr_user }}/qrgenix-frontend:latest
   args:
     warn: false
 

@@ -2,10 +2,6 @@
 - name: Pull latest backend container image
 
   shell: docker pull ghcr.io/{{ ghcr_user }}/qrgenix-backend:latest
-  args:
-    warn: false
 
 - name: Restart backend deployment in Kubernetes
   shell: kubectl rollout restart deployment qrgenix-backend -n qrgenix
-  args:
-    warn: false

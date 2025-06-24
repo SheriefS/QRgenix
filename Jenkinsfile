@@ -249,6 +249,7 @@ pipeline {
           when { expression { return fileExists(env.K8S_PENDING_FILE) } }
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
+              sh 'scripts/run_ansible.sh site.yaml'
               sh 'scripts/run_ansible.sh apply-manifests.yaml'
             }
           }
@@ -268,6 +269,8 @@ pipeline {
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
               script {
+                sh 'scripts/run_ansible.sh site.yaml'
+
                 if (fileExists(env.BACKEND_PENDING_FILE)) {
                   sh 'scripts/run_ansible.sh restart-backend.yaml'
                 }

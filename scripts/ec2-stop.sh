@@ -1,33 +1,48 @@
 #!/bin/bash
 set -e
 
-
-# Resolve absolute script path in case of symlink
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 source "$SCRIPT_DIR/load-env.sh"
 source "$SCRIPT_DIR/utils.sh"
 
-if [[ -z "$EC2_INSTANCE_ID" ]]; then
-  echo "❌ EC2_INSTANCE_ID is not set in .env"
+# === List Instances ===
+mapfile -t INSTANCE_INFO < <(
+  aws ec2 describe-instances \
+    --region "$EC2_REGION" \
+    --profile "$EC2_PROFILE" \
+    --query 'Reservations[].Instances[].[InstanceId, Tags[?Key==`Name`]|[0].Value, State.Name]' \
+    --output text
+)
+
+if [[ ${#INSTANCE_INFO[@]} -eq 0 ]]; then
+  echo "❌ No EC2 instances found."
   exit 1
 fi
 
-# === Check instance state ===
-INSTANCE_STATE=$(aws ec2 describe-instances \
-  --instance-ids "$EC2_INSTANCE_ID" \
-  --region "$EC2_REGION" \
-  --profile "$EC2_PROFILE" \
-  --query "Reservations[0].Instances[0].State.Name" \
-  --output text)
+echo
+echo "Select an EC2 instance to stop:"
+for i in "${!INSTANCE_INFO[@]}"; do
+  IFS=$'\t' read -r id name state <<< "${INSTANCE_INFO[$i]}"
+  echo "$((i+1)). [$state] $name ($id)"
+done
 
-if [[ "$INSTANCE_STATE" == "stopped" ]]; then
-  echo "🛑 Instance is already stopped."
+read -rp "Enter number (1-${#INSTANCE_INFO[@]}): " selection
+if ! [[ "$selection" =~ ^[0-9]+$ ]] || (( selection < 1 || selection > ${#INSTANCE_INFO[@]} )); then
+  echo "❌ Invalid selection."
+  exit 1
+fi
+
+IFS=$'\t' read -r EC2_INSTANCE_ID EC2_INSTANCE_NAME EC2_STATE <<< "${INSTANCE_INFO[$((selection-1))]}"
+
+# === Already stopped? ===
+if [[ "$EC2_STATE" == "stopped" ]]; then
+  echo "🛑 Instance $EC2_INSTANCE_NAME ($EC2_INSTANCE_ID) is already stopped."
   exit 0
 fi
 
 # === Stop the instance ===
-echo "Stopping EC2 instance $EC2_INSTANCE_ID..."
+echo "🛑 Stopping EC2 instance $EC2_INSTANCE_NAME ($EC2_INSTANCE_ID)..."
 aws ec2 stop-instances \
   --instance-ids "$EC2_INSTANCE_ID" \
   --region "$EC2_REGION" \
@@ -39,7 +54,8 @@ aws ec2 wait instance-stopped \
   --region "$EC2_REGION" \
   --profile "$EC2_PROFILE"
 
-echo "✅ Instance has stopped."
+echo "✅ Instance $EC2_INSTANCE_NAME has stopped."
 
-# Clear the last public IP from .env (optional cleanup)
+# === Clear IP from .env
 update_env_var "EC2_PUBLIC_IP" ""
+update_env_var "EC2_INSTANCE_ID" "$EC2_INSTANCE_ID"

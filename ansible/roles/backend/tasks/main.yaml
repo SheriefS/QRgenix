@@ -4,7 +4,7 @@
   community.docker.docker_login:
     registry_url: ghcr.io
     username: "{{ ghcr_username }}"
-    password: "{{ ghcr_pat }}"
+    password: "{{ ghcr_token }}"
 
 - name: Pull latest backend container image
   shell: docker pull ghcr.io/{{ ghcr_username }}/qrgenix-backend:latest

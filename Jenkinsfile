@@ -266,8 +266,15 @@ pipeline {
           when { expression { return fileExists(env.K8S_PENDING_FILE) } }
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
-              sh 'scripts/run_ansible.sh site.yaml'
-              sh 'scripts/run_ansible.sh apply-manifests.yaml'
+              withCredentials([string(credentialsId: 'ansible-vault-password', variable: 'ANSIBLE_VAULT_PASS')]) {
+                sh '''
+                  echo "$ANSIBLE_VAULT_PASS" > /tmp/vault-pass.txt
+                  chmod 600 /tmp/vault-pass.txt
+                  scripts/run_ansible.sh site.yaml
+                  scripts/run_ansible.sh apply-manifests.yaml
+                  rm -f /tmp/vault-pass.txt
+                '''
+              }
             }
           }
           post {
@@ -285,92 +292,34 @@ pipeline {
           when { expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) } }
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
-              script {
-                if (fileExists(env.BACKEND_PENDING_FILE)) {
-                  sh 'scripts/run_ansible.sh restart-backend.yaml'
-                }
-                if (fileExists(env.FRONTEND_PENDING_FILE)) {
-                  sh 'scripts/run_ansible.sh restart-frontend.yaml'
+              withCredentials([string(credentialsId: 'ansible-vault-password', variable: 'ANSIBLE_VAULT_PASS')]) {
+                script {
+                  sh 'echo "$ANSIBLE_VAULT_PASS" > /tmp/vault-pass.txt && chmod 600 /tmp/vault-pass.txt'
+
+                  if (fileExists(env.BACKEND_PENDING_FILE)) {
+                    sh 'scripts/run_ansible.sh restart-backend.yaml'
+                  }
+                  if (fileExists(env.FRONTEND_PENDING_FILE)) {
+                    sh 'scripts/run_ansible.sh restart-frontend.yaml'
+                  }
+
+                  sh 'rm -f /tmp/vault-pass.txt'
                 }
               }
             }
           }
           post {
-            success { script {
+            success {
+              script {
                 sh "rm -f ${env.BACKEND_PENDING_FILE}"
                 sh "rm -f ${env.FRONTEND_PENDING_FILE}"
-                notifySlackSuccess('🚢 Deployed') } }
-            failure { script { notifySlackFailure('❌ Deployment') } }
+                notifySlackSuccess('🚢 Deployed')
+              }
+            }
+            failure { script { notifySlackFailure('❌') } }
           }
         }
-
-        // stage('Apply Staging K8s YAMLs') {
-        //   when {
-        //     expression {
-        //       return fileExists(env.K8S_PENDING_FILE)
-        //     }
-        //   }
-        //   steps {
-        //     sshagent(credentials: ['ec2-ssh-key']) {
-        //       withCredentials([
-        //           string(credentialsId: 'github-user', variable: 'GIT_USER'),
-        //           string(credentialsId: 'ghcr-token', variable: 'GIT_TOKEN')
-        //       ]) {
-        //         sh '''
-        //       ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
-        //         [ -f ~/.kube/config ] || (
-        //           mkdir -p ~/.kube &&
-        //           sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config &&
-        //           sudo chown ubuntu:ubuntu ~/.kube/config
-        //         )
-
-        //         cd ~/qrgenix || git clone https://github.com/$GIT_USER/qrgenix.git ~/qrgenix
-        //         cd ~/qrgenix
-        //         git pull
-
-        //         kubectl apply -f k8s/staging
-        //       '
-        //     '''
-        //       }
-        //     }
-        //   }
-        //   post {
-        //     success {
-        //       script {
-        //         sh "rm -f ${env.K8S_PENDING_FILE}"
-        //         notifySlackSuccess('⚙️')
-        //       }
-        //     }
-        //     failure { script { notifySlackFailure('❌') } }
-        //   }
-        // }
-
-        // stage('Deploy to K3s') {
-        //   when {
-        //     expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) }
-        //   }
-        //   steps {
-        //     script {
-        //       def backendCmd = fileExists(env.BACKEND_PENDING_FILE) ? "kubectl rollout restart deployment qrgenix-backend -n qrgenix && rm -f ${env.BACKEND_PENDING_FILE} &&" : ''
-        //       def frontendCmd = fileExists(env.FRONTEND_PENDING_FILE) ? "kubectl rollout restart deployment qrgenix-frontend -n qrgenix && rm -f ${env.FRONTEND_PENDING_FILE} &&" : ''
-
-        //       sshagent(credentials: ['ec2-ssh-key']) {
-        //         sh """
-        //           ssh -o StrictHostKeyChecking=no ubuntu@qrgenix.duckdns.org '
-        //             ${backendCmd}
-        //             ${frontendCmd}
-        //             echo "Deployment Complete"
-        //           '
-        //         """
-        //       }
-        //     }
-        //   }
-        //   post {
-        //     success { script { notifySlackSuccess('🚢 Deployed') } }
-        //     failure { script { notifySlackFailure('❌ Deployment') } }
-        //   }
-        // }
-        }
+      }
     }
   }
 

@@ -87,25 +87,12 @@ pipeline {
               sh "mkdir -p ${PERSIST_DIR}"
               def changedFiles = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
 
-              def changes = changedFiles.readLines()
-
-              env.BACKEND_CHANGED = changes.any { it.startsWith('backend-django/') } ? 'true' : 'false'
-              env.FRONTEND_CHANGED = changes.any { it.startsWith('frontend-vite/') } ? 'true' : 'false'
-              env.K8S_CHANGED = changes.any { it.startsWith('k8s/') } ? 'true' : 'false'
-
-              // 🔍 Also rebuild if Dockerfile, Jenkinsfile, or compose file changes
-              def coreBuildTrigger = changes.any {
-                it == 'Dockerfile' ||
-                it == 'docker-compose.staging.yml' ||
-                it == 'docker-compose.ci.yml' ||
-                it == 'Jenkinsfile'
-              }
-
-              if (coreBuildTrigger) {
-                env.BACKEND_CHANGED = 'true'
-                env.FRONTEND_CHANGED = 'true'
-                env.K8S_CHANGED = 'true'
-              }
+              env.BACKEND_CHANGED = changedFiles.readLines().any { it.startsWith('backend-django/') } ? 'true' : 'false'
+              env.FRONTEND_CHANGED = changedFiles.readLines().any { it.startsWith('frontend-vite/') } ? 'true' : 'false'
+              env.K8S_CHANGED = changedFiles.readLines().any { it.startsWith('k8s/') } ? 'true' : 'false'
+              env.PROJECT_CHANGED = changedFiles.readLines().any {
+                it ==~ /^Jenkinsfile$/ || it.startsWith('docker-compose') || it.startsWith('scripts/') || it.startsWith('Dockerfile')
+              } ? 'true' : 'false'
 
               if (env.BACKEND_CHANGED == 'true') {
                 writeFile file: env.BACKEND_PENDING_FILE, text: 'true'
@@ -120,44 +107,14 @@ pipeline {
               echo "Backend Changed: ${env.BACKEND_CHANGED}"
               echo "Frontend Changed: ${env.FRONTEND_CHANGED}"
               echo "K8s Config Changed: ${env.K8S_CHANGED}"
+              echo "Project Infra Changed: ${env.PROJECT_CHANGED}"
             }
-          }
-        }
-
-        stage('Clean Up Frontend Container') {
-          when {
-            expression { fileExists(env.FRONTEND_PENDING_FILE) }
-          }
-          steps {
-            sh 'docker rm -f frontend-ci || true'
-          }
-          post {
-            success { script { notifySlackSuccess('🧹') } }
-            failure { script { notifySlackFailure('❌') } }
-          }
-        }
-
-        stage('Clean Up Backend Container') {
-          when {
-            expression { fileExists(env.BACKEND_PENDING_FILE) }
-          }
-          steps {
-            sh 'docker rm -f backend-ci || true'
-          }
-          post {
-            success { script { notifySlackSuccess('🧹') } }
-            failure { script { notifySlackFailure('❌') } }
-          }
-        }
-        stage('Clean Workspace') {
-          steps {
-            deleteDir()  // 🧽 Clean out old files
           }
         }
 
         stage('Build Frontend Container') {
           when {
-            expression { fileExists(env.FRONTEND_PENDING_FILE) }
+            expression { fileExists(env.FRONTEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true' }
           }
           steps {
             sh 'docker compose -f docker-compose.ci.yml build frontend'
@@ -170,7 +127,7 @@ pipeline {
 
         stage('Build Backend Container') {
           when {
-            expression { fileExists(env.BACKEND_PENDING_FILE) }
+            expression { fileExists(env.BACKEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true' }
           }
           steps {
             sh 'docker compose -f docker-compose.ci.yml build backend'
@@ -183,7 +140,7 @@ pipeline {
 
         stage('Test Backend in Container') {
           when {
-            expression { fileExists(env.BACKEND_PENDING_FILE) }
+            expression { fileExists(env.BACKEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true' }
           }
           steps {
             catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
@@ -198,7 +155,7 @@ pipeline {
 
         stage('Test Frontend in Container') {
           when {
-            expression { fileExists(env.FRONTEND_PENDING_FILE) }
+            expression { fileExists(env.FRONTEND_PENDING_FILE)  || env.PROJECT_CHANGED == 'true' }
           }
           steps {
             catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
@@ -213,7 +170,7 @@ pipeline {
 
         stage('Login to GHCR') {
           when {
-            expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) }
+            expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE)  || env.PROJECT_CHANGED == 'true' }
           }
           steps {
             withCredentials([
@@ -234,7 +191,7 @@ pipeline {
 
         stage('Push Backend Image') {
           when {
-            expression { fileExists(env.BACKEND_PENDING_FILE) }
+            expression { fileExists(env.BACKEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true' }
           }
           steps {
             script {
@@ -251,7 +208,7 @@ pipeline {
 
         stage('Push Frontend Image') {
           when {
-            expression { fileExists(env.FRONTEND_PENDING_FILE) }
+            expression { fileExists(env.FRONTEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true' }
           }
           steps {
             script {
@@ -284,7 +241,7 @@ pipeline {
         }
 
         stage('Apply Staging K8s YAMLs') {
-          when { expression { return fileExists(env.K8S_PENDING_FILE) } }
+          when { expression { return fileExists(env.K8S_PENDING_FILE) || env.PROJECT_CHANGED == 'true' } }
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
               withCredentials([string(credentialsId: 'ansible-vault-password', variable: 'ANSIBLE_VAULT_PASS')]) {
@@ -310,7 +267,7 @@ pipeline {
         }
 
         stage('Deploy to K3s') {
-          when { expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) } }
+          when { expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true' } }
           steps {
             sshagent(credentials: ['ec2-ssh-key']) {
               withCredentials([string(credentialsId: 'ansible-vault-password', variable: 'ANSIBLE_VAULT_PASS')]) {
@@ -345,6 +302,9 @@ pipeline {
   }
 
   post {
+      catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+        deleteDir()
+      }
       failure { notifySlack('❌', 'Pipeline Failed') }
       success { notifySlack('✅', 'Pipeline Succeeded') }
   }

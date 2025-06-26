@@ -1,21 +1,23 @@
-### ✅ roles/k3s/tasks/main.yaml
-
+---
 - name: Download K3s installer script
   get_url:
     url: https://get.k3s.io
     dest: /tmp/install-k3s.sh
     mode: "0755"
+  become: true
 
 - name: Install K3s
   shell: /tmp/install-k3s.sh
   args:
     creates: /usr/local/bin/k3s
+  become: true
 
 - name: Enable and start k3s
   systemd:
     name: k3s
     state: started
     enabled: true
+  become: true
 
 - name: Ensure kubectl is available via symlink
   file:
@@ -23,8 +25,17 @@
     dest: /usr/bin/kubectl
     state: link
     force: true
+  become: true
+
+- name: Ensure pip3 is installed
+  apt:
+    name: python3-pip
+    state: present
+    update_cache: true
+  become: true
 
 - name: Install kubernetes Python package (for Ansible)
   pip:
     name: kubernetes
     executable: pip3
+  become: true

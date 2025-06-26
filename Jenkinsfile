@@ -303,13 +303,14 @@ pipeline {
 
   post {
       always {
-          script {
-        try {
-          deleteDir()
-              } catch (Exception e) {
-          echo "⚠️ Could not delete workspace: ${e.getMessage()}"
-        }
+        script {
+          try {
+            deleteDir()
           }
+          catch (Exception e) {
+            echo "⚠️ Could not delete workspace: ${e.getMessage()}"
+          }
+        }
       }
       failure {
           script {

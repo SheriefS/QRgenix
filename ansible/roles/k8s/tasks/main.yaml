@@ -18,6 +18,7 @@
   command: >
     tar -czf /tmp/k8s_manifests.tar.gz -C {{ playbook_dir }}/../k8s/staging .
   delegate_to: localhost
+  become: false
 
 - name: 🚚 Copy manifest archive to app node
   copy:

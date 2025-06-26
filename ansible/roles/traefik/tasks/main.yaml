@@ -1,9 +1,24 @@
-# traefik main
-- name: Clean up any existing /tmp/k8s/helm/ owned by root
+- name: Fully remove existing Helm staging folder (force cleanup)
   file:
     path: /tmp/k8s/helm/
     state: absent
   become: true
+
+- name: Recreate Helm staging directory with proper permissions
+  file:
+    path: /tmp/k8s/helm
+    state: directory
+    mode: "0777"
+  become: true
+
+- name: 🔍 Print directory ownership and permissions for debug
+  shell: ls -ld /tmp/k8s/helm
+  register: helm_dir_info
+  become: true
+
+- name: Show Helm staging dir info
+  debug:
+    msg: "{{ helm_dir_info.stdout }}"
 
 - name: Create namespace for Traefik
   kubernetes.core.k8s:
@@ -11,13 +26,6 @@
     kind: Namespace
     name: traefik
     state: present
-
-- name: Ensure helm staging directory exists
-  file:
-    path: /tmp/k8s/helm
-    state: directory
-    mode: "0755"
-  become: false
 
 - name: Rsync Helm values files to app node
   synchronize:

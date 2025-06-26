@@ -1,3 +1,9 @@
+- name: Clean up any existing /tmp/k8s/helm/ owned by root
+  file:
+    path: /tmp/k8s/helm/
+    state: absent
+  become: true
+
 - name: Create namespace for Traefik
   kubernetes.core.k8s:
     api_version: v1
@@ -41,3 +47,4 @@
   file:
     path: /tmp/k8s/helm/
     state: absent
+  become: true

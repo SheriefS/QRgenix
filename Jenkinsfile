@@ -81,11 +81,6 @@ pipeline {
           branch 'main'
       }
       stages {
-        stage('Clean Workspace') {
-          steps {
-            deleteDir()  // 🧽 Clean out old files
-          }
-        }
         stage('Detect Changes') {
           steps {
             script {
@@ -152,6 +147,11 @@ pipeline {
           post {
             success { script { notifySlackSuccess('🧹') } }
             failure { script { notifySlackFailure('❌') } }
+          }
+        }
+        stage('Clean Workspace') {
+          steps {
+            deleteDir()  // 🧽 Clean out old files
           }
         }
 

@@ -8,7 +8,7 @@
 
 - name: Rsync Kubernetes manifests to app node
   synchronize:
-    src: "{{ playbook_dir }}/files/staging/"
+    src: "{{ playbook_dir }}/../k8s/staging/"
     dest: /tmp/k8s/
     recursive: yes
     compress: yes

@@ -13,7 +13,7 @@
 
 - name: Rsync Helm values files to app node
   synchronize:
-    src: "{{ playbook_dir }}/../k8s/helm/"
+    src: "{{ playbook_dir }}/../helm/"
     dest: /tmp/k8s/helm/
     recursive: yes
     compress: yes

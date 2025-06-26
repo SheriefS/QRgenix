@@ -43,9 +43,9 @@
 - name: Update Helm repos
   command: helm repo update
 
-- name: Deploy Traefik via Helm
+- name: Deploy or Upgrade Traefik via Helm
   command: >
-    helm install traefik traefik/traefik
+    helm upgrade --install traefik traefik/traefik
     --namespace traefik
     --create-namespace
     -f /tmp/k8s/helm/traefik-values.yaml

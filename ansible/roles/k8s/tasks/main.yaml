@@ -17,6 +17,7 @@
     format: gz
   delegate_to: localhost
   run_once: true
+  become: false
 
 - name: 🚚 Copy manifest archive to app node
   copy:

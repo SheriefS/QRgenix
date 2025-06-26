@@ -12,11 +12,28 @@
     creates: /usr/local/bin/k3s
   become: true
 
-- name: Enable and start k3s
+- name: Enable and start K3s
   systemd:
     name: k3s
     state: started
     enabled: true
+  become: true
+
+- name: Ensure .kube directory exists
+  file:
+    path: /root/.kube
+    state: directory
+    mode: "0700"
+  become: true
+
+- name: Copy K3s kubeconfig to default location
+  copy:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: /root/.kube/config
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0600"
   become: true
 
 - name: Ensure kubectl is available via symlink

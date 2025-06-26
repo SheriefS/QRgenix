@@ -84,6 +84,8 @@ pipeline {
         stage('Detect Changes') {
           steps {
             script {
+              checkout scm
+
               sh "mkdir -p ${PERSIST_DIR}"
               def changedFiles = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
 
@@ -302,16 +304,26 @@ pipeline {
   }
 
   post {
-    failure {
-      script {
+      always {
+        script {
+          try {
+            deleteDir()
+          }
+          catch (Exception e) {
+            echo "⚠️ Could not delete workspace: ${e.getMessage()}"
+          }
+        }
+      }
+      failure {
+          script {
         notifySlack('❌', 'Pipeline Failed')
+          }
       }
-    }
-    success {
-      script {
+      success {
+          script {
         notifySlack('✅', 'Pipeline Succeeded')
+          }
       }
-    }
   }
 }
 

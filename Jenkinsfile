@@ -77,139 +77,160 @@ pipeline {
     }
 
     stage('Build, Test, and Push Containers (main only)') {
-        when {
-            branch 'main'
+      when {
+          branch 'main'
+      }
+      stages {
+        stage('Clean Workspace') {
+          steps {
+            deleteDir()  // 🧽 Clean out old files
+          }
         }
-        stages {
-          stage('Detect Changes') {
-            steps {
-              script {
-                sh "mkdir -p ${PERSIST_DIR}"
-                def changedFiles = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
+        stage('Detect Changes') {
+          steps {
+            script {
+              sh "mkdir -p ${PERSIST_DIR}"
+              def changedFiles = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
 
-                env.BACKEND_CHANGED = changedFiles.contains('backend-django/') ? 'true' : 'false'
-                env.FRONTEND_CHANGED = changedFiles.contains('frontend-vite/') ? 'true' : 'false'
-                env.K8S_CHANGED = changedFiles.readLines().any { it.startsWith('k8s/') } ? 'true' : 'false'
+              def changes = changedFiles.readLines()
 
-                if (env.BACKEND_CHANGED == 'true') {
-                  writeFile file: env.BACKEND_PENDING_FILE, text: 'true'
-                }
-                if (env.FRONTEND_CHANGED == 'true') {
-                  writeFile file: env.FRONTEND_PENDING_FILE, text: 'true'
-                }
-                if (env.K8S_CHANGED == 'true') {
-                  writeFile file: env.K8S_PENDING_FILE, text: 'true'
-                }
+              env.BACKEND_CHANGED = changes.any { it.startsWith('backend-django/') } ? 'true' : 'false'
+              env.FRONTEND_CHANGED = changes.any { it.startsWith('frontend-vite/') } ? 'true' : 'false'
+              env.K8S_CHANGED = changes.any { it.startsWith('k8s/') } ? 'true' : 'false'
 
-                echo "Backend Changed: ${env.BACKEND_CHANGED}"
-                echo "Frontend Changed: ${env.FRONTEND_CHANGED}"
-                echo "K8s Config Changed: ${env.K8S_CHANGED}"
+              // 🔍 Also rebuild if Dockerfile, Jenkinsfile, or compose file changes
+              def coreBuildTrigger = changes.any {
+                it == 'Dockerfile' ||
+                it == 'docker-compose.staging.yml' ||
+                it == 'docker-compose.ci.yml' ||
+                it == 'Jenkinsfile'
               }
-            }
-          }
 
-          stage('Clean Up Frontend Container') {
-            when {
-              expression { fileExists(env.FRONTEND_PENDING_FILE) }
-            }
-            steps {
-              sh 'docker rm -f frontend-ci || true'
-            }
-            post {
-              success { script { notifySlackSuccess('🧹') } }
-              failure { script { notifySlackFailure('❌') } }
-            }
-          }
-
-          stage('Clean Up Backend Container') {
-            when {
-              expression { fileExists(env.BACKEND_PENDING_FILE) }
-            }
-            steps {
-              sh 'docker rm -f backend-ci || true'
-            }
-            post {
-              success { script { notifySlackSuccess('🧹') } }
-              failure { script { notifySlackFailure('❌') } }
-            }
-          }
-
-          stage('Build Frontend Container') {
-            when {
-              expression { fileExists(env.FRONTEND_PENDING_FILE) }
-            }
-            steps {
-              sh 'docker compose -f docker-compose.ci.yml build frontend'
-            }
-            post {
-              success { script { notifySlackSuccess('📦') } }
-              failure { script { notifySlackFailure('❌') } }
-            }
-          }
-
-          stage('Build Backend Container') {
-            when {
-              expression { fileExists(env.BACKEND_PENDING_FILE) }
-            }
-            steps {
-              sh 'docker compose -f docker-compose.ci.yml build backend'
-            }
-            post {
-              success { script { notifySlackSuccess('📦') } }
-              failure { script { notifySlackFailure('❌') } }
-            }
-          }
-
-          stage('Test Backend in Container') {
-            when {
-              expression { fileExists(env.BACKEND_PENDING_FILE) }
-            }
-            steps {
-              catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                sh 'docker compose -f docker-compose.ci.yml run --rm backend'
+              if (coreBuildTrigger) {
+                env.BACKEND_CHANGED = 'true'
+                env.FRONTEND_CHANGED = 'true'
+                env.K8S_CHANGED = 'true'
               }
-            }
-            post {
-              success { script { notifySlackSuccess('🧪') } }
-              failure { script { notifySlackFailure('❌') } }
-            }
-          }
 
-          stage('Test Frontend in Container') {
-            when {
-              expression { fileExists(env.FRONTEND_PENDING_FILE) }
-            }
-            steps {
-              catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                sh 'docker compose -f docker-compose.ci.yml run --rm frontend'
+              if (env.BACKEND_CHANGED == 'true') {
+                writeFile file: env.BACKEND_PENDING_FILE, text: 'true'
               }
-            }
-            post {
-              success { script { notifySlackSuccess('🧪') } }
-              failure { script { notifySlackFailure('❌') } }
+              if (env.FRONTEND_CHANGED == 'true') {
+                writeFile file: env.FRONTEND_PENDING_FILE, text: 'true'
+              }
+              if (env.K8S_CHANGED == 'true') {
+                writeFile file: env.K8S_PENDING_FILE, text: 'true'
+              }
+
+              echo "Backend Changed: ${env.BACKEND_CHANGED}"
+              echo "Frontend Changed: ${env.FRONTEND_CHANGED}"
+              echo "K8s Config Changed: ${env.K8S_CHANGED}"
             }
           }
+        }
 
-          stage('Login to GHCR') {
-            when {
-              expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) }
+        stage('Clean Up Frontend Container') {
+          when {
+            expression { fileExists(env.FRONTEND_PENDING_FILE) }
+          }
+          steps {
+            sh 'docker rm -f frontend-ci || true'
+          }
+          post {
+            success { script { notifySlackSuccess('🧹') } }
+            failure { script { notifySlackFailure('❌') } }
+          }
+        }
+
+        stage('Clean Up Backend Container') {
+          when {
+            expression { fileExists(env.BACKEND_PENDING_FILE) }
+          }
+          steps {
+            sh 'docker rm -f backend-ci || true'
+          }
+          post {
+            success { script { notifySlackSuccess('🧹') } }
+            failure { script { notifySlackFailure('❌') } }
+          }
+        }
+
+        stage('Build Frontend Container') {
+          when {
+            expression { fileExists(env.FRONTEND_PENDING_FILE) }
+          }
+          steps {
+            sh 'docker compose -f docker-compose.ci.yml build frontend'
+          }
+          post {
+            success { script { notifySlackSuccess('📦') } }
+            failure { script { notifySlackFailure('❌') } }
+          }
+        }
+
+        stage('Build Backend Container') {
+          when {
+            expression { fileExists(env.BACKEND_PENDING_FILE) }
+          }
+          steps {
+            sh 'docker compose -f docker-compose.ci.yml build backend'
+          }
+          post {
+            success { script { notifySlackSuccess('📦') } }
+            failure { script { notifySlackFailure('❌') } }
+          }
+        }
+
+        stage('Test Backend in Container') {
+          when {
+            expression { fileExists(env.BACKEND_PENDING_FILE) }
+          }
+          steps {
+            catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+              sh 'docker compose -f docker-compose.ci.yml run --rm backend'
             }
-            steps {
-              withCredentials([
-                string(credentialsId: 'ghcr-token', variable: 'GHCR_TOKEN'),
-                string(credentialsId: 'github-user', variable: 'GITHUB_USER')
-            ])
-                {
+          }
+          post {
+            success { script { notifySlackSuccess('🧪') } }
+            failure { script { notifySlackFailure('❌') } }
+          }
+        }
+
+        stage('Test Frontend in Container') {
+          when {
+            expression { fileExists(env.FRONTEND_PENDING_FILE) }
+          }
+          steps {
+            catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+              sh 'docker compose -f docker-compose.ci.yml run --rm frontend'
+            }
+          }
+          post {
+            success { script { notifySlackSuccess('🧪') } }
+            failure { script { notifySlackFailure('❌') } }
+          }
+        }
+
+        stage('Login to GHCR') {
+          when {
+            expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE) }
+          }
+          steps {
+            withCredentials([
+              string(credentialsId: 'ghcr-token', variable: 'GHCR_TOKEN'),
+              string(credentialsId: 'github-user', variable: 'GITHUB_USER')
+          ])
+              {
               sh '''
-                        echo $GHCR_TOKEN | docker login ghcr.io -u $GITHUB_USER --password-stdin
-                    '''
-                }
-            }
-            post {
-              success { script { notifySlackSuccess('🔐') } }
-              failure { script { notifySlackFailure('❌') } }
-            }
+                      echo $GHCR_TOKEN | docker login ghcr.io -u $GITHUB_USER --password-stdin
+                  '''
+              }
           }
+          post {
+            success { script { notifySlackSuccess('🔐') } }
+            failure { script { notifySlackFailure('❌') } }
+          }
+        }
 
         stage('Push Backend Image') {
           when {

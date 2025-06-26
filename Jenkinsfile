@@ -302,26 +302,16 @@ pipeline {
   }
 
   post {
-      always {
-        script {
-          try {
-            deleteDir()
-          }
-          catch (Exception e) {
-            echo "⚠️ Could not delete workspace: ${e.getMessage()}"
-          }
-        }
-      }
-      failure {
-          script {
+    failure {
+      script {
         notifySlack('❌', 'Pipeline Failed')
-          }
       }
-      success {
-          script {
+    }
+    success {
+      script {
         notifySlack('✅', 'Pipeline Succeeded')
-          }
       }
+    }
   }
 }
 

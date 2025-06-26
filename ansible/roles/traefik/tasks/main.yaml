@@ -27,14 +27,13 @@
     name: traefik
     state: present
 
-- name: Rsync Helm values files to app node
-  synchronize:
+- name: Copy Helm values files to app node (as normal user)
+  copy:
     src: "{{ playbook_dir }}/../helm/"
     dest: /tmp/k8s/helm/
-    recursive: yes
-    compress: yes
-  delegate_to: localhost
-  become: false
+    mode: "0644"
+    directory_mode: "0755"
+  become: true
 
 - name: Add Traefik Helm repo
   command: helm repo add traefik https://traefik.github.io/charts

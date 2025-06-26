@@ -5,6 +5,21 @@
     name: traefik
     state: present
 
+- name: Ensure helm staging directory exists
+  file:
+    path: /tmp/k8s/helm
+    state: directory
+    mode: "0755"
+
+- name: Rsync Helm values files to app node
+  synchronize:
+    src: "{{ playbook_dir }}/../k8s/helm/"
+    dest: /tmp/k8s/helm/
+    recursive: yes
+    compress: yes
+  delegate_to: localhost
+  become: false
+
 - name: Add Traefik Helm repo
   command: helm repo add traefik https://traefik.github.io/charts
   args:
@@ -18,4 +33,10 @@
     helm install traefik traefik/traefik
     --namespace traefik
     --create-namespace
-    -f ../../../helm/traefik-values.yaml
+    -f /tmp/k8s/helm/traefik-values.yaml
+  become: true
+
+- name: Clean up Helm files
+  file:
+    path: /tmp/k8s/helm/
+    state: absent

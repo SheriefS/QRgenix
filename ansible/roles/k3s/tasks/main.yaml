@@ -34,8 +34,8 @@
     update_cache: true
   become: true
 
-- name: Install kubernetes Python package (for Ansible)
-  pip:
-    name: kubernetes
-    executable: pip3
+- name: Install Kubernetes Python bindings (via apt)
+  apt:
+    name: python3-kubernetes
+    state: present
   become: true

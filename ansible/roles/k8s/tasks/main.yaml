@@ -20,6 +20,8 @@
     dest: /tmp/k8s/
     recursive: yes
     compress: yes
+    rsync_opts:
+      - "--no-group"
   delegate_to: localhost
   become: false
 

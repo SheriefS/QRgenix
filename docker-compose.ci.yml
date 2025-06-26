@@ -8,7 +8,6 @@ services:
     command: >
       sh -c "pytest --junitxml=results.xml --maxfail=1 --disable-warnings -q"
     volumes:
-      - ./backend-django:/app
       - ./backend-django/results:/app/results
 
   frontend:
@@ -19,5 +18,3 @@ services:
     working_dir: /app
     command: >
       sh -c "npm ci && npm run test"
-    volumes:
-      - ./frontend-vite:/app

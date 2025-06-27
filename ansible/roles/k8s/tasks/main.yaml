@@ -87,9 +87,13 @@
   debug:
     var: configmap_output.stdout_lines
 
-- name: 🚫 Delete all managed K8s resources
+- name: 🚫 Delete all managed K8s resources (excluding namespace)
   shell: |
     for file in /tmp/k8s/*.yaml; do
+      if grep -q 'kind: Namespace' "$file"; then
+        echo "Skipping namespace file: $(basename "$file")"
+        continue
+      fi
       echo "Deleting $(basename "$file")"
       kubectl delete -f "$file" --ignore-not-found
     done

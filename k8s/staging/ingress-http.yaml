@@ -16,6 +16,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: qrgenix-nginx
+                name: qrgenix-frontend
                 port:
                   number: 80

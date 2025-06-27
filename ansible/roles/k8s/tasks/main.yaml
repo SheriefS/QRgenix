@@ -21,6 +21,12 @@
     group: "{{ ansible_user | default('ubuntu') }}"
   become: true
 
+- name: 🧹 Remove old manifest tarball if exists
+  file:
+    path: "{{ playbook_dir }}/k8s_manifests.tar.gz"
+    state: absent
+  delegate_to: localhost
+
 - name: 🗃️ Tar up manifests on control machine (localhost)
   command: >
     tar -czf {{ playbook_dir }}/k8s_manifests.tar.gz -C {{ playbook_dir }}/../k8s/staging .

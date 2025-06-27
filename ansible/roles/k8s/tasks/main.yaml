@@ -42,7 +42,21 @@
     remote_src: true
   become: true
 
-- name: 🧾 Copy nginx.conf to app node for configmap
+- name: 📛 Ensure qrgenix namespace exists
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: qrgenix
+    state: present
+
+- name: 🚫 Delete old ConfigMap if exists
+  kubernetes.core.k8s:
+    state: absent
+    kind: ConfigMap
+    namespace: qrgenix
+    name: qrgenix-nginx-config
+
+- name: 📤 Copy final nginx.conf from local path for ConfigMap
   copy:
     src: /opt/nginx/nginx.conf
     dest: /tmp/k8s/nginx.conf
@@ -59,26 +73,50 @@
     chdir: /tmp/k8s
   become: true
 
-- name: 📛 Ensure qrgenix namespace exists
-  kubernetes.core.k8s:
-    api_version: v1
-    kind: Namespace
-    name: qrgenix
-    state: present
+- name: 🔍 Show final ConfigMap contents
+  command: kubectl get configmap qrgenix-nginx-config -n qrgenix -o yaml
+  register: configmap_output
+  changed_when: false
+
+- name: 🖨️ Output ConfigMap content
+  debug:
+    var: configmap_output.stdout_lines
 
 - name: 📥 Apply ConfigMap
   kubernetes.core.k8s:
     state: present
     src: /tmp/k8s/nginx-configmap.yaml
 
-- name: 📄 Apply remaining manifests
-  kubernetes.core.k8s:
-    state: present
-    src: "{{ item }}"
-  with_fileglob:
-    - /tmp/k8s/*.yaml
-  loop_control:
-    label: "{{ item | basename }}"
+- name: 🚫 Delete all managed K8s resources
+  shell: |
+    for file in /tmp/k8s/*.yaml; do
+      echo "Deleting $(basename "$file")"
+      kubectl delete -f "$file" --ignore-not-found
+    done
+  args:
+    executable: /bin/bash
+  become: true
+
+- name: ⏳ Wait briefly to avoid race conditions
+  pause:
+    seconds: 5
+
+- name: ⏳ Wait for service deletion to complete
+  command: kubectl get svc qrgenix-frontend -n qrgenix
+  register: svc_status
+  retries: 5
+  delay: 3
+  until: svc_status.rc != 0
+
+- name: 📄 Apply all manifests in /tmp/k8s
+  shell: |
+    for file in /tmp/k8s/*.yaml; do
+      echo "Applying $file"
+      kubectl apply -f "$file"
+    done
+  args:
+    executable: /bin/bash
+  become: true
 
 - name: 🧼 Clean up extracted files and archive
   file:

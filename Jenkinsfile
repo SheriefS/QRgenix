@@ -243,6 +243,7 @@ pipeline {
             success { script { notifySlackSuccess('🚀') } }
             failure { script { notifySlackFailure('❌') } }
           }
+        }
 
           stage('Apply Staging K8s YAMLs') {
             when { expression { return fileExists(env.K8S_PENDING_FILE) || env.PROJECT_CHANGED == 'true' } }

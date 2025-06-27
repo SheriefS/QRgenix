@@ -20,6 +20,13 @@
   delegate_to: localhost
   become: false
 
+- name: 📁 Ensure /tmp/k8s exists on app node
+  file:
+    path: /tmp/k8s
+    state: directory
+    mode: "0755"
+  become: true
+
 - name: 🚚 Copy manifest archive to app node
   copy:
     src: "{{ playbook_dir }}/k8s_manifests.tar.gz"

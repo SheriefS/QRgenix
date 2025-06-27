@@ -73,6 +73,11 @@
     chdir: /tmp/k8s
   become: true
 
+- name: 📥 Apply ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/k8s/nginx-configmap.yaml
+
 - name: 🔍 Show final ConfigMap contents
   command: kubectl get configmap qrgenix-nginx-config -n qrgenix -o yaml
   register: configmap_output
@@ -81,11 +86,6 @@
 - name: 🖨️ Output ConfigMap content
   debug:
     var: configmap_output.stdout_lines
-
-- name: 📥 Apply ConfigMap
-  kubernetes.core.k8s:
-    state: present
-    src: /tmp/k8s/nginx-configmap.yaml
 
 - name: 🚫 Delete all managed K8s resources
   shell: |

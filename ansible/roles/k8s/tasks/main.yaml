@@ -74,7 +74,9 @@
 - name: 📄 Apply remaining manifests
   kubernetes.core.k8s:
     state: present
-    src: /tmp/k8s/
+    src: "{{ item }}"
+  with_fileglob:
+    - /tmp/k8s/*.yaml
 
 - name: 🧼 Clean up extracted files and archive
   file:

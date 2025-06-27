@@ -111,6 +111,7 @@
   retries: 5
   delay: 3
   until: svc_status.rc != 0
+  failed_when: false
 
 - name: 📄 Apply all manifests in /tmp/k8s
   shell: |

@@ -5,6 +5,13 @@
     state: absent
   become: true
 
+- name: 🚫 Final cleanup of legacy nginx configmap
+  kubernetes.core.k8s:
+    state: absent
+    kind: ConfigMap
+    name: qrgenix-nginx-config
+    namespace: qrgenix
+
 - name: 📁 Recreate /tmp/k8s with correct ownership for current SSH user
   file:
     path: /tmp/k8s
@@ -49,45 +56,7 @@
     name: qrgenix
     state: present
 
-- name: 🚫 Delete old ConfigMap if exists
-  kubernetes.core.k8s:
-    state: absent
-    kind: ConfigMap
-    namespace: qrgenix
-    name: qrgenix-nginx-config
-
-- name: 📤 Copy final nginx.conf from local path for ConfigMap
-  copy:
-    src: /opt/nginx/nginx.conf
-    dest: /tmp/k8s/nginx.conf
-    remote_src: true
-  become: true
-
-- name: ⚙️ Generate Nginx ConfigMap from nginx.conf
-  shell: |
-    kubectl create configmap qrgenix-nginx-config \
-      --namespace=qrgenix \
-      --from-file=nginx.conf=/tmp/k8s/nginx.conf \
-      --dry-run=client -o yaml > /tmp/k8s/nginx-configmap.yaml
-  args:
-    chdir: /tmp/k8s
-  become: true
-
-- name: 📥 Apply ConfigMap
-  kubernetes.core.k8s:
-    state: present
-    src: /tmp/k8s/nginx-configmap.yaml
-
-- name: 🔍 Show final ConfigMap contents
-  command: kubectl get configmap qrgenix-nginx-config -n qrgenix -o yaml
-  register: configmap_output
-  changed_when: false
-
-- name: 🖨️ Output ConfigMap content
-  debug:
-    var: configmap_output.stdout_lines
-
-- name: 🚫 Delete all managed K8s resources (excluding namespace)
+- name: 🚫 Delete all QRgenix K8s objects (clean slate)
   shell: |
     for file in /tmp/k8s/*.yaml; do
       if grep -q 'kind: Namespace' "$file"; then

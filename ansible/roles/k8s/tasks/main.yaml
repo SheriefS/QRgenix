@@ -44,9 +44,9 @@
 
 - name: 🧾 Copy nginx.conf to app node for configmap
   copy:
-    src: "{{ playbook_dir }}/../nginx/files/nginx.conf"
+    src: /opt/nginx/nginx.conf
     dest: /tmp/k8s/nginx.conf
-    mode: "0644"
+    remote_src: true
   become: true
 
 - name: ⚙️ Generate Nginx ConfigMap from nginx.conf

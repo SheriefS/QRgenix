@@ -77,6 +77,8 @@
     src: "{{ item }}"
   with_fileglob:
     - /tmp/k8s/*.yaml
+  loop_control:
+    label: "{{ item | basename }}"
 
 - name: 🧼 Clean up extracted files and archive
   file:

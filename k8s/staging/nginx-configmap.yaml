@@ -11,7 +11,7 @@ data:
 
     http {
       upstream frontend {
-        server qrgenix-frontend.qrgenix.svc.cluster.local:5173;
+        server qrgenix-frontend.qrgenix.svc.cluster.local:80;
         keepalive 8;
       }
       upstream backend {

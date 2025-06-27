@@ -1,11 +1,13 @@
 # Stage 1: Build
-FROM node:22.16.0 AS build
+FROM node:22.1.0 AS build
 
 WORKDIR /app
 
+# Install dependencies
 COPY package*.json ./
 RUN npm ci
 
+# Copy source files and build
 COPY . .
 RUN npm run build
 
@@ -18,9 +20,8 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy built frontend from previous stage
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Optional: Add custom nginx config if needed
-# COPY nginx.conf /etc/nginx/nginx.conf
-
+# Expose HTTP port
 EXPOSE 80
 
+# Start NGINX
 CMD ["nginx", "-g", "daemon off;"]

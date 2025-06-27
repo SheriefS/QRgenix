@@ -26,6 +26,7 @@
     path: "{{ playbook_dir }}/k8s_manifests.tar.gz"
     state: absent
   delegate_to: localhost
+  become: false
 
 - name: 🗃️ Tar up manifests on control machine (localhost)
   command: >
@@ -45,7 +46,7 @@
     src: /tmp/k8s_manifests.tar.gz
     dest: /tmp/k8s/k8s_manifests.tar.gz
     mode: "0644"
-    remote_src: false # local file on control node
+    remote_src: false
   become: false
 
 - name: 📦 Extract manifests on app node

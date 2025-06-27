@@ -50,3 +50,6 @@ def generate_qr_api(request):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+def health_check(request):
+    return JsonResponse({"status": "ok"})

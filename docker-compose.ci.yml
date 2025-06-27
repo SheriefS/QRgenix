@@ -13,6 +13,7 @@ services:
   frontend:
     build:
       context: ./frontend-vite
+      dockerfile: Dockerfile.ci
     image: qrgenix-frontend-ci
     container_name: frontend-ci
     working_dir: /app

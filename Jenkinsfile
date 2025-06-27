@@ -231,22 +231,19 @@ pipeline {
             }
           }
 
-          stage('Prepare K8s Manifests') {
-            steps {
-              sh '''
-                echo "🛠️ Preparing NGINX config for Ansible"
-                mkdir -p ansible/roles/nginx/files
-                cp nginx/nginx.conf ansible/roles/nginx/files/nginx.conf
-                echo "🛠️ Preparing K8s manifests for Ansible"
-                mkdir -p ansible/roles/k8s/files/staging
-                cp k8s/staging/*.yaml ansible/roles/k8s/files/staging/
-              '''
-            }
-            post {
-              success { script { notifySlackSuccess('🚀') } }
-              failure { script { notifySlackFailure('❌') } }
-            }
+        stage('Prepare K8s Manifests') {
+          steps {
+            sh '''
+              echo "🛠️ Preparing K8s manifests for Ansible"
+              mkdir -p ansible/roles/k8s/files/staging
+              cp k8s/staging/*.yaml ansible/roles/k8s/files/staging/
+            '''
           }
+          post {
+            success { script { notifySlackSuccess('🚀') } }
+            failure { script { notifySlackFailure('❌') } }
+          }
+        }
 
           stage('Apply Staging K8s YAMLs') {
             when { expression { return fileExists(env.K8S_PENDING_FILE) || env.PROJECT_CHANGED == 'true' } }

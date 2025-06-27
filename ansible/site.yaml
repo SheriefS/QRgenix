@@ -6,7 +6,6 @@
     - common
     - docker
     - k3s
-    - nginx
     - helm
     - traefik
     - k8s

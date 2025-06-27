@@ -29,11 +29,11 @@
 
 - name: 🚚 Copy manifest archive to app node
   copy:
-    src: "{{ playbook_dir }}/k8s_manifests.tar.gz"
+    src: /tmp/k8s_manifests.tar.gz
     dest: /tmp/k8s/k8s_manifests.tar.gz
     mode: "0644"
-  become: false # Assumes SSH user has write access to /tmp/k8s
-  delegate_to: localhost
+    remote_src: false # local file on control node
+  become: false
 
 - name: 📦 Extract manifests on app node
   unarchive:

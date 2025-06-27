@@ -16,14 +16,16 @@
 
 - name: 🗃️ Tar up manifests on control machine (localhost)
   command: >
-    tar -czf /tmp/k8s_manifests.tar.gz -C {{ playbook_dir }}/../k8s/staging .
+    tar -czf {{ playbook_dir }}/k8s_manifests.tar.gz -C {{ playbook_dir }}/../k8s/staging .
   delegate_to: localhost
   become: false
 
 - name: 🚚 Copy manifest archive to app node
   copy:
-    src: "/tmp/k8s_manifests.tar.gz"
-    dest: "/tmp/k8s/"
+    src: "{{ playbook_dir }}/k8s_manifests.tar.gz"
+    dest: /tmp/k8s/k8s_manifests.tar.gz
+    mode: "0644"
+  become: false # Assumes SSH user has write access to /tmp/k8s
   delegate_to: localhost
 
 - name: 📦 Extract manifests on app node
@@ -31,12 +33,14 @@
     src: "/tmp/k8s/k8s_manifests.tar.gz"
     dest: "/tmp/k8s/"
     remote_src: true
+  become: true
 
 - name: 🧾 Copy nginx.conf to app node for configmap
   copy:
     src: "{{ playbook_dir }}/../nginx/files/nginx.conf"
     dest: /tmp/k8s/nginx.conf
     mode: "0644"
+  become: true
 
 - name: ⚙️ Generate Nginx ConfigMap from nginx.conf
   shell: |
@@ -46,6 +50,7 @@
       --dry-run=client -o yaml > /tmp/k8s/nginx-configmap.yaml
   args:
     chdir: /tmp/k8s
+  become: true
 
 - name: 📛 Ensure qrgenix namespace exists
   kubernetes.core.k8s:

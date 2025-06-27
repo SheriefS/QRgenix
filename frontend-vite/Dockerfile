@@ -7,6 +7,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
+# Set the API base URL for production build
+ENV VITE_API_BASE_URL=/api
+
 # Copy source files and build
 COPY . .
 RUN npm run build
@@ -25,3 +28,5 @@ EXPOSE 80
 
 # Start NGINX
 CMD ["nginx", "-g", "daemon off;"]
+
+

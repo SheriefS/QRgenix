@@ -19,7 +19,6 @@ spec:
           image: ghcr.io/sheriefs/qrgenix-frontend:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 5173
-          command: ["npm", "run", "dev", "--", "--host"]
+            - containerPort: 80
       imagePullSecrets:
         - name: ghcr-secret

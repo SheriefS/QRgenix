@@ -27,7 +27,7 @@ dist/
 Thumbs.db
 
 # Secrets and keys
-.env
+# .env
 *.pem
 *.key
 

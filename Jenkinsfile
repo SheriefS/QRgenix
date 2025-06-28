@@ -1,5 +1,5 @@
 /* groovylint-disable CompileStatic */
-// test
+//test
 pipeline {
   agent any
 

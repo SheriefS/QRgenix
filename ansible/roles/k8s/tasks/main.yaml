@@ -1,18 +1,18 @@
----
-# 🧹 Clean slate: ensure /tmp/k8s is removed
-- name: 🧹 Ensure clean /tmp/k8s directory on app node
-  file:
-    path: /tmp/k8s
-    state: absent
-  become: true
+# ---
+# # 🧹 Clean slate: ensure /tmp/k8s is removed
+# - name: 🧹 Ensure clean /tmp/k8s directory on app node
+#   file:
+#     path: /tmp/k8s
+#     state: absent
+#   become: true
 
-# 🚫 Remove legacy nginx configmap
-- name: 🚫 Final cleanup of legacy nginx configmap
-  kubernetes.core.k8s:
-    state: absent
-    kind: ConfigMap
-    name: qrgenix-nginx-config
-    namespace: qrgenix
+# # 🚫 Remove legacy nginx configmap
+# - name: 🚫 Final cleanup of legacy nginx configmap
+#   kubernetes.core.k8s:
+#     state: absent
+#     kind: ConfigMap
+#     name: qrgenix-nginx-config
+#     namespace: qrgenix
 
 # 📁 Recreate /tmp/k8s with correct ownership
 - name: 📁 Recreate /tmp/k8s with correct ownership for current SSH user
@@ -86,13 +86,30 @@
     remote_src: false
   become: false
 
+- name: 🔍 Show contents of /tmp/k8s BEFORE extraction
+  command: ls -l /tmp/k8s
+  become: true
+  register: k8s_tmp_before
+
+- debug:
+    var: k8s_tmp_before.stdout_lines
+
 # 📦 Extract manifests using tar (avoids unarchive bug)
-- name: 📦 Extract manifests using tar (avoids unarchive bug)
+- name: 📦 Force extract manifests with overwrite and correct permissions
   shell: |
-    tar -xzf /tmp/k8s/k8s_manifests.tar.gz -C /tmp/k8s/
+    sudo rm -rf /tmp/k8s/*
+    sudo tar --overwrite -xzf /tmp/k8s/k8s_manifests.tar.gz -C /tmp/k8s/
   args:
     executable: /bin/bash
   become: true
+
+- name: 🔍 Show contents of /tmp/k8s AFTER extraction
+  command: ls -l /tmp/k8s
+  become: true
+  register: k8s_tmp_after
+
+- debug:
+    var: k8s_tmp_after.stdout_lines
 
 # 📛 Ensure qrgenix namespace exists
 - name: 📛 Ensure qrgenix namespace exists
@@ -130,15 +147,6 @@
   delay: 3
   until: svc_status.rc != 0
   failed_when: false
-
-# 🧨 Show extracted files on app node before apply
-- name: 🧨 Show extracted files on app node before apply
-  command: ls -l /tmp/k8s
-  become: true
-  register: extracted_files
-
-- debug:
-    var: extracted_files.stdout_lines
 
 # 📄 Apply all manifests in /tmp/k8s
 - name: 📄 Apply all manifests in /tmp/k8s

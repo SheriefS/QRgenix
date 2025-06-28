@@ -4,6 +4,9 @@ kind: Deployment
 metadata:
   name: qrgenix-backend
   namespace: qrgenix
+  labels:
+    app.kubernetes.io/managed-by: qrgenix
+    app: qrgenix-backend
 spec:
   replicas: 1
   selector:
@@ -17,11 +20,15 @@ spec:
       containers:
         - name: backend
           image: ghcr.io/sheriefs/qrgenix-backend:latest
-          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           env:
             - name: DJANGO_SETTINGS_MODULE
-              value: "qrgenix.settings"
-      imagePullSecrets:
-        - name: ghcr-secret
+              value: qrgenix.settings
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"

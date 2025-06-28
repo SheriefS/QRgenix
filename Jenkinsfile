@@ -1,11 +1,12 @@
 /* groovylint-disable CompileStatic */
-//test
+
 pipeline {
   agent any
 
   environment {
       GHCR_REGISTRY = 'ghcr.io'
       REPO = 'qrgenix'
+      VERSION = "${BUILD_NUMBER}"
       SLACK_WEBHOOK = credentials('slack-webhook')
       GITHUB_USER = credentials('github-user')
       GHCR_TOKEN = credentials('ghcr-token')
@@ -34,38 +35,38 @@ pipeline {
       }
     }
     stage('Check for README-only changes') {
-        steps {
-            script {
+      steps {
+        script {
           def changedFiles = sh(script: "git diff-tree --no-commit-id --name-only -r $GIT_COMMIT", returnStdout: true).trim()
           if (changedFiles == 'README.md') {
             echo 'Only README.md changed. Skipping pipeline.'
             currentBuild.result = 'NOT_BUILT'
             error('README-only change')
           }
-            }
         }
+      }
     }
 
     stage('Test Frontend (Code Only)') {
-        when {
-            not { branch 'main' }
-        }
-        agent {
-            docker {
+      when {
+        not { branch 'main' }
+      }
+      agent {
+        docker {
           image 'node:22.16.0'
           args '-u root'
-            }
         }
-        steps {
-            dir('frontend-vite') {
+      }
+      steps {
+        dir('frontend-vite') {
           sh 'npm ci'
           sh 'npm run test'
-            }
         }
-        post {
-            success { script { notifySlackSuccess('✅') } }
-            failure { script { notifySlackFailure('❌') } }
-        }
+      }
+      post {
+        success { script { notifySlackSuccess('✅') } }
+        failure { script { notifySlackFailure('❌') } }
+      }
     }
 
     stage('Test Backend (Code Only)') {
@@ -85,15 +86,16 @@ pipeline {
             }
         }
         post {
-            success { script { notifySlackSuccess('✅') } }
-            failure { script { notifySlackFailure('❌') } }
+          success { script { notifySlackSuccess('✅') } }
+          failure { script { notifySlackFailure('❌') } }
         }
     }
 
     stage('Build, Test, and Push Containers (main only)') {
-      when {
-          branch 'main'
-      }
+      // when {
+      //     branch 'main'
+      // }
+
       stages {
         stage('Detect Changes') {
           steps {
@@ -126,6 +128,17 @@ pipeline {
           }
         }
 
+        stage('Init image tags') {
+          steps {
+            script {
+              env.BACKEND_REPO  = "${env.GHCR_REGISTRY}/${env.GITHUB_USER}/${env.REPO}-backend"
+              env.FRONTEND_REPO = "${env.GHCR_REGISTRY}/${env.GITHUB_USER}/${env.REPO}-frontend"
+            }
+          }
+        }
+
+        /*  ------- BUILD CI IMAGES ---------------------------------- */
+
         stage('Build Frontend Container') {
           when {
             expression { fileExists(env.FRONTEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true' }
@@ -151,6 +164,8 @@ pipeline {
             failure { script { notifySlackFailure('❌') } }
           }
         }
+
+        /*  ------- TEST CI IMAGES ---------------------------------- */
 
         stage('Test Backend in Container') {
           when {
@@ -182,6 +197,30 @@ pipeline {
           }
         }
 
+        /*  ------- BUILD PROD/STAGING IMAGES ---------------------------------- */
+
+        stage('Build frontend prod image') {
+            when { expression { fileExists(env.FRONTEND_PENDING_FILE)  || env.PROJECT_CHANGED == 'true' } }
+            steps {
+                sh 'docker compose -f docker-compose.staging.yaml build frontend'
+            }
+            post {
+            success { script { notifySlackSuccess('🧪') } }
+            failure { script { notifySlackFailure('❌') } }
+            }
+        }
+
+        stage('Build backend prod image') {
+            when { expression { fileExists(env.BACKEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true' } }
+            steps {
+                sh 'docker compose -f docker-compose.staging.yaml build backend'
+            }
+            post {
+            success { script { notifySlackSuccess('🧪') } }
+            failure { script { notifySlackFailure('❌') } }
+            }
+        }
+
         stage('Login to GHCR') {
           when {
             expression { fileExists(env.FRONTEND_PENDING_FILE) || fileExists(env.BACKEND_PENDING_FILE)  || env.PROJECT_CHANGED == 'true' }
@@ -203,16 +242,17 @@ pipeline {
           }
         }
 
-        stage('Push Backend Image') {
-          when {
-            expression { fileExists(env.BACKEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true' }
-          }
+        /*  ------- PUSH PROD/STAGING IMAGES ---------------------------------- */
+
+        stage('Push backend image') {
+          when { expression { fileExists(env.BACKEND_PENDING_FILE)  || env.PROJECT_CHANGED == 'true' } }
           steps {
-            script {
-              def backendImage = "${GHCR_REGISTRY}/${GITHUB_USER}/${REPO}-backend:latest"
-              sh "docker tag qrgenix-backend-ci ${backendImage}"
-              sh "docker push ${backendImage}"
-            }
+              sh """
+                  docker tag qrgenix-backend:prod   ${env.BACKEND_REPO}:${env.VERSION}
+                  docker tag qrgenix-backend:prod   ${env.BACKEND_REPO}:latest
+                  docker push ${env.BACKEND_REPO}:${env.VERSION}
+                  docker push ${env.BACKEND_REPO}:latest
+              """
           }
           post {
             success { script { notifySlackSuccess('🚀') } }
@@ -220,16 +260,15 @@ pipeline {
           }
         }
 
-        stage('Push Frontend Image') {
-          when {
-            expression { fileExists(env.FRONTEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true' }
-          }
+        stage('Push frontend image') {
+          when { expression { fileExists(env.FRONTEND_PENDING_FILE)  || env.PROJECT_CHANGED == 'true' } }
           steps {
-            script {
-              def frontendImage = "${GHCR_REGISTRY}/${GITHUB_USER}/${REPO}-frontend:latest"
-              sh "docker tag qrgenix-frontend-ci ${frontendImage}"
-              sh "docker push ${frontendImage}"
-            }
+              sh """
+                  docker tag qrgenix-frontend:prod  ${env.FRONTEND_REPO}:${env.VERSION}
+                  docker tag qrgenix-frontend:prod  ${env.FRONTEND_REPO}:latest
+                  docker push ${env.FRONTEND_REPO}:${env.VERSION}
+                  docker push ${env.FRONTEND_REPO}:latest
+              """
           }
           post {
             success { script { notifySlackSuccess('🚀') } }
@@ -237,17 +276,10 @@ pipeline {
           }
         }
 
-        stage('Prepare K8s Manifests') {
+        stage('Package K8s manifests') {
+          when { expression { fileExists(env.K8S_PENDING_FILE) || env.PROJECT_CHANGED == 'true' } }
           steps {
-            sh '''
-            echo "🛠️ Preparing K8s manifests for Ansible"
-            mkdir -p ansible/roles/k8s/files/staging
-            cp k8s/staging/*.yaml ansible/roles/k8s/files/staging/
-          '''
-          }
-          post {
-            success { script { notifySlackSuccess('🚀') } }
-            failure { script { notifySlackFailure('❌') } }
+            sh 'tar -czf k8s/staging.tar.gz -C k8s/staging .'
           }
         }
 
@@ -259,7 +291,6 @@ pipeline {
                 sh '''
                   echo "$ANSIBLE_VAULT_PASS" > /tmp/vault-pass.txt
                   chmod 600 /tmp/vault-pass.txt
-                  scripts/run_ansible.sh site.yaml
                   scripts/run_ansible.sh apply-manifests.yaml
                   rm -f /tmp/vault-pass.txt
                 '''
@@ -285,10 +316,10 @@ pipeline {
                 script {
                   sh 'echo "$ANSIBLE_VAULT_PASS" > /tmp/vault-pass.txt && chmod 600 /tmp/vault-pass.txt'
 
-                  if (fileExists(env.BACKEND_PENDING_FILE)) {
+                  if (fileExists(env.BACKEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true') {
                     sh 'scripts/run_ansible.sh restart-backend.yaml'
                   }
-                  if (fileExists(env.FRONTEND_PENDING_FILE)) {
+                  if (fileExists(env.FRONTEND_PENDING_FILE) || env.PROJECT_CHANGED == 'true') {
                     sh 'scripts/run_ansible.sh restart-frontend.yaml'
                   }
 

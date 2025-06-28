@@ -1,165 +1,34 @@
-# ---
-# # 🧹 Clean slate: ensure /tmp/k8s is removed
-# - name: 🧹 Ensure clean /tmp/k8s directory on app node
-#   file:
-#     path: /tmp/k8s
-#     state: absent
-#   become: true
-
-# # 🚫 Remove legacy nginx configmap
-# - name: 🚫 Final cleanup of legacy nginx configmap
-#   kubernetes.core.k8s:
-#     state: absent
-#     kind: ConfigMap
-#     name: qrgenix-nginx-config
-#     namespace: qrgenix
-
-# 📁 Recreate /tmp/k8s with correct ownership
-- name: 📁 Recreate /tmp/k8s with correct ownership for current SSH user
+---
+- name: Ensure /tmp/k8s exists on app node
   file:
     path: /tmp/k8s
     state: directory
     mode: "0755"
     owner: "{{ ansible_user | default('ubuntu') }}"
-    group: "{{ ansible_user | default('ubuntu') }}"
   become: true
 
-# 🔍 Who is running Jenkins (debug)
-- name: 🔍 Print current user on control machine
-  command: whoami
-  delegate_to: localhost
-  register: whoami_output
-  become: false
-
-- debug:
-    var: whoami_output.stdout
-
-# 📂 Show files in k8s/staging before tar
-- name: 📂 Show files in k8s/staging before tar
-  command: ls -l {{ playbook_dir }}/../k8s/staging
-  delegate_to: localhost
-  register: staging_listing
-  become: false
-
-- debug:
-    var: staging_listing.stdout_lines
-
-# 🧹 Remove old manifest tarball if exists
-- name: 🧹 Remove old manifest tarball if exists
-  file:
-    path: "{{ playbook_dir }}/k8s_manifests.tar.gz"
-    state: absent
-  delegate_to: localhost
-  become: false
-
-# 🗃️ Tar up manifests on control machine (localhost)
-- name: 🗃️ Tar up manifests on control machine (localhost)
-  command: >
-    tar -czf {{ playbook_dir }}/k8s_manifests.tar.gz -C {{ playbook_dir }}/../k8s/staging .
-  delegate_to: localhost
-  become: false
-
-# 📦 Show contents of tarball on control machine
-- name: 📦 Show contents of tarball on control machine
-  command: tar -tzf {{ playbook_dir }}/k8s_manifests.tar.gz
-  delegate_to: localhost
-  register: tarball_listing
-  become: false
-
-- debug:
-    msg: "Tarball contains: {{ tarball_listing.stdout_lines }}"
-
-# 📁 Ensure /tmp/k8s exists on app node (redundant guard)
-- name: 📁 Ensure /tmp/k8s exists on app node
-  file:
-    path: /tmp/k8s
-    state: directory
-    mode: "0755"
-  become: true
-
-# 🚚 Copy manifest archive to app node
-- name: 🚚 Copy manifest archive to app node
-  copy:
-    src: /tmp/k8s_manifests.tar.gz
-    dest: /tmp/k8s/k8s_manifests.tar.gz
+# Copy and extract manifests in one go
+- name: Transfer manifests archive
+  unarchive:
+    src: "{{ playbook_dir }}/../k8s/staging.tar.gz" # built on control node
+    dest: /tmp/k8s
     mode: "0644"
-    remote_src: false
-  become: false
-
-- name: 🔍 Show contents of /tmp/k8s BEFORE extraction
-  command: ls -l /tmp/k8s
-  become: true
-  register: k8s_tmp_before
-
-- debug:
-    var: k8s_tmp_before.stdout_lines
-
-# 📦 Extract manifests using tar (avoids unarchive bug)
-- name: 📦 Force extract manifests with overwrite and correct permissions
-  shell: |
-    sudo rm -rf /tmp/k8s/*
-    sudo tar --overwrite -xzf /tmp/k8s/k8s_manifests.tar.gz -C /tmp/k8s/
-  args:
-    executable: /bin/bash
+    remote_src: false # copy, then extract
   become: true
 
-- name: 🔍 Show contents of /tmp/k8s AFTER extraction
-  command: ls -l /tmp/k8s
-  become: true
-  register: k8s_tmp_after
-
-- debug:
-    var: k8s_tmp_after.stdout_lines
-
-# 📛 Ensure qrgenix namespace exists
-- name: 📛 Ensure qrgenix namespace exists
+# Make sure the namespace exists
+- name: Create qrgenix namespace (idempotent)
   kubernetes.core.k8s:
     api_version: v1
     kind: Namespace
     name: qrgenix
     state: present
 
-# 🚫 Delete all QRgenix K8s objects (clean slate)
-- name: 🚫 Delete all QRgenix K8s objects (clean slate)
+# Apply / prune everything labelled managed-by=qrgenix
+- name: Apply manifests and prune removed objects
   shell: |
-    for file in /tmp/k8s/*.yaml; do
-      if grep -q 'kind: Namespace' "$file"; then
-        echo "Skipping namespace file: $(basename "$file")"
-        continue
-      fi
-      echo "Deleting $(basename "$file")"
-      kubectl delete -f "$file" --ignore-not-found
-    done
+    kubectl apply -f /tmp/k8s \
+      --prune -l app.kubernetes.io/managed-by=qrgenix
   args:
     executable: /bin/bash
   become: true
-
-# ⏳ Wait briefly to avoid race conditions
-- name: ⏳ Wait briefly to avoid race conditions
-  pause:
-    seconds: 5
-
-# ⏳ Wait for service deletion to complete
-- name: ⏳ Wait for service deletion to complete
-  command: kubectl get svc qrgenix-frontend -n qrgenix
-  register: svc_status
-  retries: 5
-  delay: 3
-  until: svc_status.rc != 0
-  failed_when: false
-
-# 📄 Apply all manifests in /tmp/k8s
-- name: 📄 Apply all manifests in /tmp/k8s
-  shell: |
-    for file in /tmp/k8s/*.yaml; do
-      echo "Applying $file"
-      kubectl apply -f "$file"
-    done
-  args:
-    executable: /bin/bash
-  become: true
-# - name: 🧼 Clean up extracted files and archive
-#   file:
-#     path: /tmp/k8s/
-#     state: absent
-#   become: true

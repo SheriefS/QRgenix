@@ -4,6 +4,8 @@ kind: Middleware
 metadata:
   name: redirect-to-https
   namespace: qrgenix
+  labels:
+    app.kubernetes.io/managed-by: qrgenix
 spec:
   redirectScheme:
     scheme: https

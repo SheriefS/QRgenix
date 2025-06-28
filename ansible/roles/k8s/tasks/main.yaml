@@ -21,6 +21,15 @@
     group: "{{ ansible_user | default('ubuntu') }}"
   become: true
 
+- name: 🔍 Print current user on control machine
+  command: whoami
+  delegate_to: localhost
+  register: whoami_output
+  become: false
+
+- debug:
+    var: whoami_output.stdout
+
 - name: 🧹 Remove old manifest tarball if exists
   file:
     path: "{{ playbook_dir }}/k8s_manifests.tar.gz"
@@ -33,6 +42,15 @@
     tar -czf {{ playbook_dir }}/k8s_manifests.tar.gz -C {{ playbook_dir }}/../k8s/staging .
   delegate_to: localhost
   become: false
+
+- name: 📦 Show contents of tarball on control machine
+  command: tar -tzf {{ playbook_dir }}/k8s_manifests.tar.gz
+  delegate_to: localhost
+  register: tarball_listing
+  become: false
+
+- debug:
+    msg: "Tarball contains: {{ tarball_listing.stdout_lines }}"
 
 - name: 📁 Ensure /tmp/k8s exists on app node
   file:
@@ -88,6 +106,14 @@
   delay: 3
   until: svc_status.rc != 0
   failed_when: false
+
+- name: 🧨 Show extracted files on app node before apply
+  command: ls -l /tmp/k8s
+  become: true
+  register: extracted_files
+
+- debug:
+    var: extracted_files.stdout_lines
 
 - name: 📄 Apply all manifests in /tmp/k8s
   shell: |

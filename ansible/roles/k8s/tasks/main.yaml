@@ -82,12 +82,11 @@
     remote_src: false
   become: false
 
-- name: 📦 Extract manifests on app node
-  unarchive:
-    src: "/tmp/k8s/k8s_manifests.tar.gz"
-    dest: "/tmp/k8s/"
-    remote_src: true
-    extra_opts: [--overwrite, --unlink-first]
+- name: 📦 Extract manifests using tar (avoids unarchive bug)
+  shell: |
+    tar -xzf /tmp/k8s/k8s_manifests.tar.gz -C /tmp/k8s/
+  args:
+    executable: /bin/bash
   become: true
 
 - name: 📛 Ensure qrgenix namespace exists

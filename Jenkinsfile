@@ -33,6 +33,11 @@ pipeline {
             }
         }
     }
+    stage('🧹 Clean workspace') {
+      steps {
+        cleanWs()
+      }
+    }
 
     stage('Test Frontend (Code Only)') {
         when {
@@ -90,6 +95,12 @@ pipeline {
           branch 'main'
       }
       stages {
+        stage('🧹 Clean workspace') {
+          steps {
+            cleanWs()
+          }
+        }
+
         stage('Detect Changes') {
           steps {
             script {

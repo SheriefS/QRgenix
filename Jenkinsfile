@@ -95,12 +95,6 @@ pipeline {
           branch 'main'
       }
       stages {
-        stage('🧹 Clean workspace') {
-          steps {
-            cleanWs()
-          }
-        }
-
         stage('Detect Changes') {
           steps {
             script {
@@ -129,6 +123,12 @@ pipeline {
               echo "K8s Config Changed: ${env.K8S_CHANGED}"
               echo "Project Infra Changed: ${env.PROJECT_CHANGED}"
             }
+          }
+        }
+
+        stage('🧹 Clean workspace') {
+          steps {
+            cleanWs()
           }
         }
 

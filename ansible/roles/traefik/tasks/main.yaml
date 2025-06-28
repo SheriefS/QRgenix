@@ -50,9 +50,8 @@
     --create-namespace
     -f /tmp/k8s/helm/traefik-values.yaml
   become: true
-
-- name: Clean up Helm files
-  file:
-    path: /tmp/k8s/helm/
-    state: absent
-  become: true
+# - name: Clean up Helm files
+#   file:
+#     path: /tmp/k8s/helm/
+#     state: absent
+#   become: true

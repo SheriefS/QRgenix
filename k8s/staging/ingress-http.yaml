@@ -3,6 +3,8 @@ kind: Ingress
 metadata:
   name: qrgenix-ingress-http
   namespace: qrgenix
+  labels:
+    app.kubernetes.io/managed-by: qrgenix
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
     traefik.ingress.kubernetes.io/router.middlewares: qrgenix-redirect-to-https@kubernetescrd
@@ -19,3 +21,10 @@ spec:
                 name: qrgenix-frontend
                 port:
                   number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: qrgenix-backend
+                port:
+                  number: 8000

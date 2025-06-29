@@ -4,6 +4,9 @@ kind: Deployment
 metadata:
   name: qrgenix-frontend
   namespace: qrgenix
+  labels:
+    app.kubernetes.io/managed-by: qrgenix
+    app: qrgenix-frontend
 spec:
   replicas: 1
   selector:

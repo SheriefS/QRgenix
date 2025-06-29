@@ -14,3 +14,5 @@ create_github_labels.sh
 .vscode/
 __archive__/
 nginx/
+docker-compose.local.yaml
+ci/

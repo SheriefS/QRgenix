@@ -1,0 +1,7 @@
+# playbooks/bootstrap-traefik.yaml
+- hosts: app_node
+  become: true
+  roles:
+    - helm       # installs Helm binary
+    - traefik    # helm upgrade --install traefik/traefik …
+

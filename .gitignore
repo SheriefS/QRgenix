@@ -16,3 +16,4 @@ __archive__/
 nginx/
 docker-compose.local.yaml
 ci/
+k3s.yaml

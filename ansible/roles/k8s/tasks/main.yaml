@@ -1,34 +1,28 @@
 ---
-- name: Ensure /tmp/k8s exists on app node
-  file:
-    path: /tmp/k8s
-    state: directory
-    mode: "0755"
-    owner: "{{ ansible_user | default('ubuntu') }}"
-  become: true
-
-# Copy and extract manifests in one go
-- name: Transfer manifests archive
-  unarchive:
-    src: "{{ playbook_dir }}/../k8s/staging.tar.gz" # built on control node
-    dest: /tmp/k8s
-    mode: "0644"
-    remote_src: false # copy, then extract
-  become: true
-
-# Make sure the namespace exists
-- name: Create qrgenix namespace (idempotent)
+- name: Ensure qrgenix namespace exists
   kubernetes.core.k8s:
     api_version: v1
     kind: Namespace
     name: qrgenix
     state: present
 
-# Apply / prune everything labelled managed-by=qrgenix
-- name: Apply manifests and prune removed objects
+- name: Ensure /tmp/k8s exists
+  file:
+    path: /tmp/k8s
+    state: directory
+    mode: "0755"
+
+- name: Copy & extract manifests
+  unarchive:
+    src: /staging.tar.gz
+    dest: /tmp/k8s
+    remote_src: true
+
+- name: Apply + prune selected kinds
   shell: |
-    kubectl apply -f /tmp/k8s \
-      --prune -l app.kubernetes.io/managed-by=qrgenix
+    kubectl apply -f /tmp/k8s --prune \
+      --prune-whitelist=apps/v1/Deployment \
+      --prune-whitelist=v1/Service \
+      --prune-whitelist=networking.k8s.io/v1/Ingress
   args:
     executable: /bin/bash
-  become: true

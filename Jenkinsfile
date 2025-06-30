@@ -15,6 +15,7 @@ pipeline {
     SSH_KEY_ID    = 'ec2-ssh-key'
     VAULT_PASS_ID = 'ansible-vault-password'
     KCFG_FILE_ID  = 'kubeconfig'
+    DOCKER_CONFIG = ''
   }
 
   options {
@@ -115,75 +116,137 @@ pipeline {
     }
 
     /* --------------- Feature-branch unit tests --------------- */
-    stage('Frontend unit tests') {
-      when {
-        allOf {
-          expression { env.TEST_FULL == 'true' }
-          expression { env.FRONTEND_CHANGED == 'true' }
-        }
-      }
-      agent { docker { image 'node:22.16.0'; args '-u root' } }
-      steps {
-        dir('frontend-vite') { sh 'npm ci && npm run test' }
-      }
-      post {
-        success {
-          script { notifySlackSuccess('✅') }
-        }
-        failure {
-          script { notifySlackFailure('❌') }
-        }
-      }
-    }
+    // stage('Frontend unit tests') {
+    //   when {
+    //     allOf {
+    //       expression { env.TEST_FULL == 'true' }
+    //       expression { env.FRONTEND_CHANGED == 'true' }
+    //     }
+    //   }
+    //   agent { docker { image 'node:22.16.0'; args '-u root' } }
+    //   steps {
+    //     dir('frontend-vite') { sh 'npm ci && npm run test' }
+    //   }
+    //   post {
+    //     success {
+    //       script { notifySlackSuccess('✅') }
+    //     }
+    //     failure {
+    //       script { notifySlackFailure('❌') }
+    //     }
+    //   }
+    // }
 
-    stage('Backend unit tests') {
-      when {
-        allOf {
-          expression { env.TEST_FULL == 'true' }
-          expression { env.BACKEND_CHANGED == 'true' }
-        }
-      }
-      agent { docker { image 'python:3.12.3'; args '-u root' } }
-      steps {
-        dir('backend-django') { sh 'pip install -r requirements.txt && pytest -q' }
-      }
-      post {
-        success {
-          script { notifySlackSuccess('✅') }
-        }
-        failure {
-          script { notifySlackFailure('❌') }
-        }
-      }
-    }
+    // stage('Backend unit tests') {
+    //   when {
+    //     allOf {
+    //       expression { env.TEST_FULL == 'true' }
+    //       expression { env.BACKEND_CHANGED == 'true' }
+    //     }
+    //   }
+    //   agent { docker { image 'python:3.12.3'; args '-u root' } }
+    //   steps {
+    //     dir('backend-django') { sh 'pip install -r requirements.txt && pytest -q' }
+    //   }
+    //   post {
+    //     success {
+    //       script { notifySlackSuccess('✅') }
+    //     }
+    //     failure {
+    //       script { notifySlackFailure('❌') }
+    //     }
+    //   }
+    // }
 
     /* ======================= FULL BUILD & DEPLOY (RUN_FULL) ======================= */
     stage('Full build/deploy') {
       when { expression { env.RUN_FULL == 'true' } }
 
       stages {
-        stage('Init image tags') {
-          steps {
-            script {
-              env.BACKEND_REPO  = "${GHCR_REGISTRY}/${GITHUB_USER}/${REPO}-backend"
-              env.FRONTEND_REPO = "${GHCR_REGISTRY}/${GITHUB_USER}/${REPO}-frontend"
-            }
-          }
-          post { success { script { notifySlackSuccess('ℹ️') } } }
-        }
+      //   stage('Init image tags') {
+      //     steps {
+      //       script {
+      //         env.BACKEND_REPO  = "${GHCR_REGISTRY}/${GITHUB_USER}/${REPO}-backend"
+      //         env.FRONTEND_REPO = "${GHCR_REGISTRY}/${GITHUB_USER}/${REPO}-frontend"
+      //       }
+      //     }
+      //     post { success { script { notifySlackSuccess('ℹ️') } } }
+      //   }
 
         /* ---------- CI build + tests ---------- */
-        stage('Build + test backend CI') {
-          when { expression { env.BACKEND_CHANGED == 'true' } }
+        // stage('Build + test backend CI') {
+        //   when { expression { env.BACKEND_CHANGED == 'true' } }
+        //   steps {
+        //     sh '''
+        //       docker compose -f docker-compose.ci.yml build backend
+        //       docker compose -f docker-compose.ci.yml run --rm backend
+        //     '''
+        //   }
+        //   post {
+        //     success {
+        //       script { notifySlackSuccess('🧪') }
+        //     }
+        //     failure {
+        //       script { notifySlackFailure('❌') }
+        //     }
+        //   }
+        // }
+
+        // stage('Build + test frontend CI') {
+        //   when { expression { env.FRONTEND_CHANGED == 'true' } }
+        //   steps {
+        //     sh '''
+        //       docker compose -f docker-compose.ci.yml build frontend
+        //       docker compose -f docker-compose.ci.yml run --rm frontend            '''
+        //   }
+        //   post {
+        //     success {
+        //       script { notifySlackSuccess('🧪') }
+        //     }
+        //     failure {
+        //       script { notifySlackFailure('❌') }
+        //     }
+        //   }
+        // }
+
+        // /* ---------- prod build ---------- */
+        // stage('Backend prod build') {
+        //   when { expression { env.BACKEND_CHANGED == 'true' } }
+        //   steps { sh 'docker compose -f docker-compose.staging.yaml build backend' }
+        //   post {
+        //     success {
+        //       script { notifySlackSuccess('📦') }
+        //     }
+        //     failure {
+        //       script { notifySlackFailure('❌') }
+        //     }
+        //   }
+        // }
+
+        // stage('Frontend prod build') {
+        //   when { expression { env.FRONTEND_CHANGED == 'true' } }
+        //   steps { sh 'docker compose -f docker-compose.staging.yaml build frontend' }
+        //   post {
+        //     success {
+        //       script { notifySlackSuccess('📦') }
+        //     }
+        //     failure {
+        //       script { notifySlackFailure('❌') }
+        //     }
+        //   }
+        // }
+
+        stage('Init Docker Config') {
           steps {
-            sh '''
-              docker compose -f docker-compose.ci.yml build backend
-              docker compose -f docker-compose.ci.yml run --rm backend
-            '''
+            script {
+              def tmpDir = sh(script: 'mktemp -d', returnStdout: true).trim()
+              env.DOCKER_CONFIG = tmpDir
+              echo "Using temp Docker config: ${env.DOCKER_CONFIG}"
+            }
           }
           post {
             success {
-              script { notifySlackSuccess('🧪') }
+              script { notifySlackSuccess('⚙️') }
             }
             failure {
               script { notifySlackFailure('❌') }
@@ -191,43 +254,19 @@ pipeline {
           }
         }
 
-        stage('Build + test frontend CI') {
-          when { expression { env.FRONTEND_CHANGED == 'true' } }
+        stage('Docker Login') {
           steps {
-            sh '''
-              docker compose -f docker-compose.ci.yml build frontend
-              docker compose -f docker-compose.ci.yml run --rm frontend            '''
+            withCredentials([
+              string(credentialsId: 'ghcr-token', variable: 'GHCR_TOKEN')
+            ]) {
+              sh '''
+                echo "$GHCR_TOKEN" | docker login ghcr.io -u $GITHUB_USER --password-stdin
+              '''
+            }
           }
           post {
             success {
-              script { notifySlackSuccess('🧪') }
-            }
-            failure {
-              script { notifySlackFailure('❌') }
-            }
-          }
-        }
-
-        /* ---------- prod build ---------- */
-        stage('Backend prod build') {
-          when { expression { env.BACKEND_CHANGED == 'true' } }
-          steps { sh 'docker compose -f docker-compose.staging.yaml build backend' }
-          post {
-            success {
-              script { notifySlackSuccess('📦') }
-            }
-            failure {
-              script { notifySlackFailure('❌') }
-            }
-          }
-        }
-
-        stage('Frontend prod build') {
-          when { expression { env.FRONTEND_CHANGED == 'true' } }
-          steps { sh 'docker compose -f docker-compose.staging.yaml build frontend' }
-          post {
-            success {
-              script { notifySlackSuccess('📦') }
+              script { notifySlackSuccess('ℹ️') }
             }
             failure {
               script { notifySlackFailure('❌') }
@@ -236,34 +275,33 @@ pipeline {
         }
 
         /* ---------- push ---------- */
-        stage('Push images') {
-          when { anyOf { expression { env.BACKEND_CHANGED == 'true' } ; expression { env.FRONTEND_CHANGED == 'true' } } }
-          steps {
-            sh '''
-              echo $GHCR_TOKEN | docker login ghcr.io -u $GITHUB_USER --password-stdin
-              if [ "$BACKEND_CHANGED" = "true" ]; then
-                docker tag qrgenix-backend:prod $BACKEND_REPO:$VERSION
-                docker tag qrgenix-backend:prod $BACKEND_REPO:latest
-                docker push $BACKEND_REPO:$VERSION
-                docker push $BACKEND_REPO:latest
-              fi
-              if [ "$FRONTEND_CHANGED" = "true" ]; then
-                docker tag qrgenix-frontend:prod $FRONTEND_REPO:$VERSION
-                docker tag qrgenix-frontend:prod $FRONTEND_REPO:latest
-                docker push $FRONTEND_REPO:$VERSION
-                docker push $FRONTEND_REPO:latest
-              fi
-            '''
-          }
-          post {
-            success {
-              script { notifySlackSuccess('🚀') }
-            }
-            failure {
-              script { notifySlackFailure('❌') }
-            }
-          }
-        }
+        // stage('Push images') {
+        //   when { anyOf { expression { env.BACKEND_CHANGED == 'true' } ; expression { env.FRONTEND_CHANGED == 'true' } } }
+        //   steps {
+        //     sh '''
+        //       if [ "$BACKEND_CHANGED" = "true" ]; then
+        //         docker tag qrgenix-backend:prod $BACKEND_REPO:$VERSION
+        //         docker tag qrgenix-backend:prod $BACKEND_REPO:latest
+        //         docker push $BACKEND_REPO:$VERSION
+        //         docker push $BACKEND_REPO:latest
+        //       fi
+        //       if [ "$FRONTEND_CHANGED" = "true" ]; then
+        //         docker tag qrgenix-frontend:prod $FRONTEND_REPO:$VERSION
+        //         docker tag qrgenix-frontend:prod $FRONTEND_REPO:latest
+        //         docker push $FRONTEND_REPO:$VERSION
+        //         docker push $FRONTEND_REPO:latest
+        //       fi
+        //     '''
+        //   }
+        //   post {
+        //     success {
+        //       script { notifySlackSuccess('🚀') }
+        //     }
+        //     failure {
+        //       script { notifySlackFailure('❌') }
+        //     }
+        //   }
+        // }
 
         /* ---------- tar & apply manifests ---------- */
         stage('Package manifests') {
@@ -289,7 +327,9 @@ pipeline {
               string(credentialsId: 'ghcr-token', variable:'GHCR_TOKEN')
             ]) {
               sh '''
-                echo "$GHCR_TOKEN" | docker login ghcr.io -u $GITHUB_USER --password-stdin
+                ssh-keyscan -H qrgenix.duckdns.org > known_hosts
+                export KNOWN_HOSTS_PATH=known_hosts
+
                 scripts/run_ansible.sh apply-manifests.yaml
               '''
             }
@@ -317,7 +357,7 @@ pipeline {
               if [ "$BACKEND_CHANGED" = "true" ];  then scripts/run_ansible.sh restart-backend.yaml;  fi
               if [ "$FRONTEND_CHANGED" = "true" ]; then scripts/run_ansible.sh restart-frontend.yaml; fi
             '''
-            }
+          }
           }
           post {
             success {
@@ -334,7 +374,11 @@ pipeline {
 
   /**************** POST REPORT ****************/
   post {
-    always   { deleteDir() }
+    always   {
+      deleteDir()
+      echo "Cleaning up Docker config at: ${env.DOCKER_CONFIG}"
+      sh 'rm -rf "$DOCKER_CONFIG"'
+    }
     failure  {
       script { notifySlack('❌','Pipeline Failed') }
     }

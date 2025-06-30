@@ -6,7 +6,7 @@ metadata:
   namespace: qrgenix
   labels:
     app.kubernetes.io/managed-by: qrgenix
-    app: qrgenix-frontend
+    app: qrgenix-frontend # ← pod selector label
 spec:
   replicas: 1
   selector:
@@ -19,9 +19,12 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/sheriefs/qrgenix-frontend:latest
+          image: ghcr.io/sheriefs/qrgenix-frontend:latest # Jenkins always retags :latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits: { cpu: "200m", memory: "128Mi" }
       imagePullSecrets:
         - name: ghcr-secret

@@ -1,4 +1,4 @@
-- name: Restart QRgenix Backend
+- name: Rollout QRgenix Backend
   hosts: qrgenix
   become: true
   roles:

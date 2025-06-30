@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# run_ansible.sh <playbook-path-relative-to-ansible-dir>
-# Example: scripts/run_ansible.sh playbooks/apply-manifests.yaml
 
 set -euo pipefail
 
@@ -8,13 +6,8 @@ PLAYBOOK="$1"
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 ANSIBLE_DIR="$REPO_ROOT/ansible"
-SSH_KEY_PATH="/home/ubuntu/.ssh/k3s_key"
-KNOWN_HOSTS_PATH="/home/ubuntu/.ssh/known_hosts"
-
-if [ ! -f /home/ubuntu/.ssh/k3s_key ]; then
-  echo "ERROR: /home/ubuntu/.ssh/k3s_key not found"
-  exit 1
-fi
+SSH_KEY_PATH="${SSH_KEY:-}"
+KNOWN_HOSTS_PATH="${KNOWN_HOSTS_PATH:-$PWD/known_hosts}"
 
 # ------------------------------------------------------------------
 # 1) Create a one-off vault file from $VAULT_PASS (exported by Jenkins)
@@ -26,38 +19,21 @@ chmod 600 "$VAULT_FILE"
 # ------------------------------------------------------------------
 # 2) Run the container
 # ------------------------------------------------------------------
-# docker run --rm \
-#   --entrypoint /bin/sh \
-#   -v "$SSH_KEY_PATH/.ssh/k3s_key:/root/.ssh/k3s_key:ro" \
-#   -v "$KNOWN_HOSTS_PATH/.ssh/known_hosts:/root/.ssh/known_hosts:ro" \
-#   -v "$KUBECONFIG_FILE:/root/.kube/config:ro" \
-#   -v "$ANSIBLE_DIR:/ansible:ro" \
-#   -v "$REPO_ROOT/k8s/staging.tar.gz:/staging.tar.gz:ro" \
-#   -v "$VAULT_FILE:/tmp/vault-pass.txt:ro" \
-#   -e ANSIBLE_CONFIG=/ansible/ansible.cfg \
-#   -e ANSIBLE_ROLES_PATH=/ansible/roles \
-#   ghcr.io/${GITHUB_USER}/ansible-k8s:1.0 \
-#   -c "\
-#     ls -l /root/.ssh/k3s_key /root/.ssh/known_hosts 
-#   "
 
 docker run --rm \
-  --entrypoint /bin/sh \
-  -v "$SSH_KEY_PATH/.ssh/k3s_key:/root/.ssh/k3s_key:ro" \
-  -v "$KNOWN_HOSTS_PATH/.ssh/known_hosts:/root/.ssh/known_hosts:ro" \
+  -v "$SSH_KEY_PATH:/root/.ssh/k3s_key:ro" \
+  -v "$KNOWN_HOSTS_PATH:/root/.ssh/known_hosts:ro" \
   -v "$KUBECONFIG_FILE:/root/.kube/config:ro" \
   -v "$ANSIBLE_DIR:/ansible:ro" \
-  -v "$REPO_ROOT/k8s/staging.tar.gz:/staging.tar.gz:ro" \
+  -v "$REPO_ROOT/k8s/staging:/workspace/k8s/staging:ro" \
   -v "$VAULT_FILE:/tmp/vault-pass.txt:ro" \
   -e ANSIBLE_CONFIG=/ansible/ansible.cfg \
   -e ANSIBLE_ROLES_PATH=/ansible/roles \
   --entrypoint ansible-playbook \
   -w /ansible \
-  ghcr.io/${GITHUB_USER}/ansible-k8s:1.0 \
-    playbooks/"$PLAYBOOK" \
-    -i inventory/hosts.ini \
-    --vault-password-file /tmp/vault-pass.txt \
-    -vv  
+  ghcr.io/${GITHUB_USER}/ansible-k8s:latest \
+  playbooks/"$PLAYBOOK" -i inventory/localhost.ini -vv
+
 
 # ------------------------------------------------------------------
 # 3) Clean up

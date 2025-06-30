@@ -1,4 +1,6 @@
 ---
+#Apply manifiest using ansible as a controller
+
 - name: Ensure qrgenix namespace exists
   kubernetes.core.k8s:
     api_version: v1
@@ -6,23 +8,10 @@
     name: qrgenix
     state: present
 
-- name: Ensure /tmp/k8s exists
-  file:
-    path: /tmp/k8s
-    state: directory
-    mode: "0755"
-
-- name: Copy & extract manifests
-  unarchive:
-    src: /staging.tar.gz
-    dest: /tmp/k8s
-    remote_src: true
-
-- name: Apply + prune selected kinds
-  shell: |
-    kubectl apply -f /tmp/k8s --prune \
-      --prune-whitelist=apps/v1/Deployment \
-      --prune-whitelist=v1/Service \
-      --prune-whitelist=networking.k8s.io/v1/Ingress
-  args:
-    executable: /bin/bash
+- name: Apply + prune all qrgenix manifests
+  kubernetes.core.k8s:
+    state: present
+    src: /workspace/k8s/staging # controller path
+    delete_all: yes # prune extras
+    label_selectors:
+      - app.kubernetes.io/managed-by=qrgenix

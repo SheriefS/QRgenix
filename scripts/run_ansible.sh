@@ -39,19 +39,3 @@ docker run --rm \
 # 3) Clean up
 # ------------------------------------------------------------------
 rm -f "$VAULT_FILE"
-
-
-# docker run --rm \
-#   --entrypoint /bin/sh \
-#   -v "$SSH_KEY_PATH/.ssh/k3s_key:/root/.ssh/k3s_key:ro" \
-#   -v "$KNOWN_HOSTS_PATH/.ssh/known_hosts:/root/.ssh/known_hosts:ro" \
-#   -v "$KUBECONFIG_FILE:/root/.kube/config:ro" \
-#   -v "$ANSIBLE_DIR:/ansible:ro" \
-#   -v "$REPO_ROOT/k8s/staging.tar.gz:/staging.tar.gz:ro" \
-#   -v "$VAULT_FILE:/tmp/vault-pass.txt:ro" \
-#   -e ANSIBLE_CONFIG=/ansible/ansible.cfg \
-#   -e ANSIBLE_ROLES_PATH=/ansible/roles \
-#   ghcr.io/${GITHUB_USER}/ansible-k8s:1.0 \
-#   -c "\
-#     ls -l /root/.ssh/k3s_key /root/.ssh/known_hosts 
-#   "

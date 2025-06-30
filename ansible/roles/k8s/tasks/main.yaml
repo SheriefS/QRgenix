@@ -1,4 +1,6 @@
 ---
+#Apply manifiest using ansible as a controller
+
 - name: Ensure qrgenix namespace exists
   kubernetes.core.k8s:
     api_version: v1

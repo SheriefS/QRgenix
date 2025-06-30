@@ -20,15 +20,14 @@ spec:
       containers:
         - name: backend
           image: ghcr.io/sheriefs/qrgenix-backend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           env:
             - name: DJANGO_SETTINGS_MODULE
               value: qrgenix.settings
           resources:
-            requests:
-              cpu: "100m"
-              memory: "128Mi"
-            limits:
-              cpu: "500m"
-              memory: "256Mi"
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }
+      imagePullSecrets:
+        - name: ghcr-secret

@@ -1,0 +1,7 @@
+---
+- name: Apply QRgenix manifests
+  hosts: qrgenix
+  gather_facts: false
+  become: true
+  roles:
+    - k8s

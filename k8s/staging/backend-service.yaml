@@ -9,8 +9,8 @@ metadata:
 spec:
   selector:
     app: qrgenix-backend
-  ports:
-    - protocol: TCP
-      port: 8000
-      targetPort: 8000
   type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP

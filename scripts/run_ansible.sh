@@ -20,7 +20,7 @@ chmod 600 "$VAULT_FILE"
 # 2) Run the container
 # ------------------------------------------------------------------
 
-docker run --rm \
+docker run --rm --pull=always\
   -v "$SSH_KEY_PATH:/root/.ssh/k3s_key:ro" \
   -v "$KNOWN_HOSTS_PATH:/root/.ssh/known_hosts:ro" \
   -v "$KUBECONFIG_FILE:/root/.kube/config:ro" \
@@ -32,7 +32,10 @@ docker run --rm \
   --entrypoint ansible-playbook \
   -w /ansible \
   ghcr.io/${GITHUB_USER}/ansible-k8s:latest \
-  playbooks/"$PLAYBOOK" -i inventory/localhost.ini -vv
+    -i inventory/localhost.ini \
+    -i inventory/hosts.ini \
+    playbooks/"$PLAYBOOK" \
+    -vv
 
 
 # ------------------------------------------------------------------

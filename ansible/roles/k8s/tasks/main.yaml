@@ -1,6 +1,4 @@
 ---
-#Apply manifiest using ansible as a controller
-
 - name: Ensure qrgenix namespace exists
   kubernetes.core.k8s:
     api_version: v1
@@ -11,7 +9,8 @@
 - name: Apply + prune all qrgenix manifests
   kubernetes.core.k8s:
     state: present
-    src: /workspace/k8s/staging # controller path
-    delete_all: yes # prune extras
+    src: /workspace/k8s/staging/ # controller path
+    recursive: yes
+    prune: yes
     label_selectors:
       - app.kubernetes.io/managed-by=qrgenix

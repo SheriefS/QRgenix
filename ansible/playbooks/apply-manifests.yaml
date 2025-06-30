@@ -1,6 +1,6 @@
 ---
 - name: Apply QRgenix manifests
-  hosts: qrgenix
+  hosts: local
   gather_facts: false
   become: true
   roles:

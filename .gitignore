@@ -17,3 +17,4 @@ nginx/
 docker-compose.local.yaml
 ci/
 k3s.yaml
+delete_old_versions.sh

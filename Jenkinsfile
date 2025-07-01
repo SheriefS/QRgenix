@@ -1,5 +1,5 @@
 /* groovylint-disable CompileStatic, DuplicateStringLiteral, ImplicitClosureParameter, LineLength, MethodParameterTypeRequired, MethodReturnTypeRequired, NestedBlockDepth, NoDef, UnnecessaryObjectReferences, VariableTypeRequired */
-
+// test
 pipeline {
   agent any
 
@@ -42,69 +42,75 @@ pipeline {
       }
     }
 
-    stage('README-only guard') {
-      steps {
-        script {
-          /* Use the env var if it exists, otherwise use the parent commit */
-          def base = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: sh(
-                      script: 'git rev-parse HEAD~1', returnStdout: true
-                    ).trim()
+    // stage('README-only guard') {
+    //   steps {
+    //     script {
+    //       /* Use the env var if it exists, otherwise use the parent commit */
+    //       def base = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: sh(
+    //                   script: 'git rev-parse HEAD~1', returnStdout: true
+    //                 ).trim()
 
-          def changed = sh(
-            script: "git diff --name-only ${base} HEAD",
-            returnStdout: true
-          ).trim()
+    //       def changed = sh(
+    //         script: "git diff --name-only ${base} HEAD",
+    //         returnStdout: true
+    //       ).trim()
 
-          if (changed == 'README.md') {
-            echo 'Only README.md changed → skipping rest of pipeline.'
-            currentBuild.result = 'NOT_BUILT'
-            error('README-only change')
-          }
-        }
-      }
-      post {
-        success {
-          script { notifySlackSuccess('ℹ️') }
-        }
-        failure {
-          script { notifySlackFailure('❌') }
-        }
-      }
-    }
+    //       if (changed == 'README.md') {
+    //         echo 'Only README.md changed → skipping rest of pipeline.'
+    //         currentBuild.result = 'NOT_BUILT'
+    //         error('README-only change')
+    //       }
+    //     }
+    //   }
+    //   post {
+    //     success {
+    //       script { notifySlackSuccess('ℹ️') }
+    //     }
+    //     failure {
+    //       script { notifySlackFailure('❌') }
+    //     }
+    //   }
+    // }
 
     /* -------- Detect changes (sets RUN_FULL) -------- */
     stage('Detect changes') {
       steps {
         script {
-          def diff = sh(script:'git diff --name-only origin/main...HEAD', returnStdout:true).trim().readLines()
+        //   def diff = sh(script:'git diff --name-only origin/main...HEAD', returnStdout:true).trim().readLines()
 
-          env.PIPELINE_CHANGED = diff.any {
-            it ==~ /^Jenkinsfile$/ || it.startsWith('scripts/') ||
-            it.startsWith('ansible/') || it.startsWith('docker-compose')
-          } ? 'true' : 'false'
+        //   env.PIPELINE_CHANGED = diff.any {
+        //     it ==~ /^Jenkinsfile$/ || it.startsWith('scripts/') ||
+        //     it.startsWith('ansible/') || it.startsWith('docker-compose')
+        //   } ? 'true' : 'false'
 
-          env.BACKEND_CHANGED  = diff.any { it.startsWith('backend-django/') } ? 'true' : 'false'
-          env.FRONTEND_CHANGED = diff.any { it.startsWith('frontend-vite/') } ? 'true' : 'false'
-          env.K8S_CHANGED      = diff.any { it.startsWith('k8s/') } ? 'true' : 'false'
+        //   env.BACKEND_CHANGED  = diff.any { it.startsWith('backend-django/') } ? 'true' : 'false'
+        //   env.FRONTEND_CHANGED = diff.any { it.startsWith('frontend-vite/') } ? 'true' : 'false'
+        //   env.K8S_CHANGED      = diff.any { it.startsWith('k8s/') } ? 'true' : 'false'
+
+          env.PIPELINE_CHANGED = 'true'
+          env.BACKEND_CHANGED  = 'true'
+          env.FRONTEND_CHANGED = 'true'
+          env.K8S_CHANGED      = 'true'
 
           env.RUN_FULL = (env.BRANCH_NAME == 'main' || env.PIPELINE_CHANGED == 'true') ? 'true' : 'false'
           env.TEST_FULL = (env.BRANCH_NAME != 'main' || env.PIPELINE_CHANGED == 'true') ? 'true' : 'false'
 
-          /* ------------ force everything when pipeline changed ------------ */
-          if (env.PIPELINE_CHANGED == 'true') {
-            env.BACKEND_CHANGED  = 'true'
-            env.FRONTEND_CHANGED = 'true'
-            env.K8S_CHANGED      = 'true'
-          }
+        //   /* ------------ force everything when pipeline changed ------------ */
+        //   if (env.PIPELINE_CHANGED == 'true') {
+        //     env.BACKEND_CHANGED  = 'true'
+        //     env.FRONTEND_CHANGED = 'true'
+        //     env.K8S_CHANGED      = 'true'
+        //   }
 
-          echo """\
-          BACKEND_CHANGED : $BACKEND_CHANGED
-          FRONTEND_CHANGED: $FRONTEND_CHANGED
-          K8S_CHANGED     : $K8S_CHANGED
-          PIPELINE_CHANGED: $PIPELINE_CHANGED
-          RUN_FULL        : $RUN_FULL""".stripIndent()
-        }
+      //   echo """\
+      //   BACKEND_CHANGED : $BACKEND_CHANGED
+      //   FRONTEND_CHANGED: $FRONTEND_CHANGED
+      //   K8S_CHANGED     : $K8S_CHANGED
+      //   PIPELINE_CHANGED: $PIPELINE_CHANGED
+      //   RUN_FULL        : $RUN_FULL""".stripIndent()
+      // }
       }
+    }
       post {
         success {
           script { notifySlackSuccess('ℹ️') }
@@ -113,7 +119,7 @@ pipeline {
           script { notifySlackFailure('❌') }
         }
       }
-    }
+  }
 
     /* --------------- Feature-branch unit tests --------------- */
     // stage('Frontend unit tests') {
@@ -304,18 +310,6 @@ pipeline {
         // }
 
         /* ---------- tar & apply manifests ---------- */
-        stage('Package manifests') {
-          when { expression { env.K8S_CHANGED == 'true' || env.PIPELINE_CHANGED == 'true' } }
-          steps { sh 'tar -czf k8s/staging.tar.gz -C k8s/staging .' }
-          post {
-            success {
-              script { notifySlackSuccess('📦') }
-            }
-            failure {
-              script { notifySlackFailure('❌') }
-            }
-          }
-        }
 
         stage('Apply manifests') {
           when { expression { env.K8S_CHANGED == 'true' || env.PIPELINE_CHANGED == 'true' } }
@@ -370,7 +364,7 @@ pipeline {
         }
       }
     }
-  }
+}
 
   /**************** POST REPORT ****************/
   post {

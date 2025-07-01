@@ -1,7 +1,7 @@
 # playbooks/bootstrap-k3s.yaml
-- hosts: app_node
+- hosts: qrgenix
   become: true
   roles:
-    - k3s        # installs K3s, kubectl symlink
-    - docker     # optional: install Docker engine
+    - k3s # installs K3s, kubectl symlink
+    - docker # optional: install Docker engine
 

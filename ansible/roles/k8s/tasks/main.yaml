@@ -6,11 +6,16 @@
     name: qrgenix
     state: present
 
-- name: Apply + prune all qrgenix manifests
-  kubernetes.core.k8s:
-    state: present
-    src: /workspace/k8s/staging/ # controller path
-    recursive: yes
-    prune: yes
-    label_selectors:
-      - app.kubernetes.io/managed-by=qrgenix
+- name: Apply & prune everything under staging/ with kubectl
+  ansible.builtin.command: >
+    kubectl apply --recursive --prune
+      --filename /workspace/k8s/staging
+      --selector app.kubernetes.io/managed-by=qrgenix
+      --namespace qrgenix
+  environment:
+    KUBECONFIG: /root/.kube/config # already mounted in your container
+  register: kubectl_apply
+
+# (optional) show a short summary in the Ansible output
+- ansible.builtin.debug:
+    var: kubectl_apply.stdout_lines

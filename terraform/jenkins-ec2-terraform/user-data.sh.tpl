@@ -65,6 +65,15 @@ docker run -d \
   --group-add "$DOCKER_GID" \
   jenkins/jenkins:lts
 
+# ── GitHub SSH known_hosts ────────────────────────────────────
+# Pre-populate before any pipeline runs so git+SSH checkouts don't
+# fail or prompt on first use. Owned by uid 1000 (jenkins user).
+mkdir -p /var/jenkins_home/.ssh
+ssh-keyscan github.com >> /var/jenkins_home/.ssh/known_hosts
+chown -R 1000:1000 /var/jenkins_home/.ssh
+chmod 700 /var/jenkins_home/.ssh
+chmod 600 /var/jenkins_home/.ssh/known_hosts
+
 # ── NGINX (HTTP → HTTPS → Jenkins container) ──────────────────
 apt install -y nginx
 rm -f /etc/nginx/sites-enabled/default

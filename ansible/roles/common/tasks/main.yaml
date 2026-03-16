@@ -15,10 +15,28 @@
       - ufw
     state: present
 
-- name: Enable UFW and allow SSH
+- name: UFW - allow SSH
   ufw:
     rule: allow
     name: OpenSSH
+
+- name: UFW - allow HTTP
+  ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+
+- name: UFW - allow HTTPS
+  ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+
+- name: UFW - allow K3s API
+  ufw:
+    rule: allow
+    port: "6443"
+    proto: tcp
 
 - name: Ensure UFW is enabled
   ufw:

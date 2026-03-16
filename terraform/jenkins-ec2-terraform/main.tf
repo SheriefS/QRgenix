@@ -38,6 +38,21 @@ resource "aws_iam_role_policy" "jenkins_read_tailscale_secret" {
   })
 }
 
+resource "aws_iam_role_policy" "jenkins_read_qrgenix_secrets" {
+  name = "jenkins-read-qrgenix-secrets"
+  role = aws_iam_role.jenkins.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "secretsmanager:GetSecretValue"
+      # Covers qrgenix/slack-webhook, qrgenix/ghcr-token, and any future project secrets
+      Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:qrgenix/*"
+    }]
+  })
+}
+
 resource "aws_iam_instance_profile" "jenkins" {
   name = "jenkins-ec2-profile"
   role = aws_iam_role.jenkins.name

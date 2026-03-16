@@ -3,7 +3,7 @@
 set -e
 
 # === Config ===
-SCRIPT_DIR="$(dirname "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TARGET_DIR="/usr/local/bin"
 
 echo "🔗 Linking scripts from $SCRIPT_DIR to $TARGET_DIR..."

@@ -18,3 +18,9 @@ docker-compose.local.yaml
 ci/
 k3s.yaml
 delete_old_versions.sh
+.terraform/
+*.tfstate
+*.tfstate.backup
+.env.ec2
+.env
+*.pem

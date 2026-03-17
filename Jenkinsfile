@@ -128,7 +128,7 @@ pipeline {
           expression { env.FRONTEND_CHANGED == 'true' }
         }
       }
-      agent { docker { image 'node:22-slim'; args '-u root' } }
+      agent { docker { image 'node:22-alpine'; args '-u root' } }
       steps {
         dir('frontend-vite') { sh 'npm ci && npm run test' }
       }

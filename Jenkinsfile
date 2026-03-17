@@ -128,7 +128,7 @@ pipeline {
           expression { env.FRONTEND_CHANGED == 'true' }
         }
       }
-      agent { docker { image 'node:22.16.0'; args '-u root' } }
+      agent { docker { image 'node:22-slim'; args '-u root' } }
       steps {
         dir('frontend-vite') { sh 'npm ci && npm run test' }
       }
@@ -145,7 +145,7 @@ pipeline {
           expression { env.BACKEND_CHANGED == 'true' }
         }
       }
-      agent { docker { image 'python:3.12.3'; args '-u root' } }
+      agent { docker { image 'python:3.12-slim'; args '-u root' } }
       steps {
         dir('backend-django') { sh 'pip install -r requirements.txt && pytest -q' }
       }
@@ -309,6 +309,7 @@ pipeline {
   post {
     always {
       deleteDir()
+      sh 'docker system prune -f'
       echo "Cleaning up Docker config at: ${env.DOCKER_CONFIG}"
       sh 'rm -rf "$DOCKER_CONFIG"'
     }

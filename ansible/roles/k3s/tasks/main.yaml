@@ -36,6 +36,12 @@
     mode: "0600"
   become: true
 
+- name: Make K3s kubeconfig world-readable
+  file:
+    path: /etc/rancher/k3s/k3s.yaml
+    mode: "0644"
+  become: true
+
 - name: Ensure kubectl is available via symlink
   file:
     src: /usr/local/bin/kubectl

@@ -31,7 +31,7 @@ persistence:
   accessMode: ReadWriteOnce
   size: 128Mi
   path: /data
-  storageClass: ""
+  storageClass: local-path
 
 certificatesResolvers:
   letsencrypt:

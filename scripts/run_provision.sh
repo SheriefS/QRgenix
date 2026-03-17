@@ -33,7 +33,7 @@ _aws_secret() {
 }
 
 VAULT_PASS_FILE=$(mktemp /tmp/ansible-vault-pass.XXXX)
-_aws_secret qrgenix/vault-password > "$VAULT_PASS_FILE"
+_aws_secret qrgenix/vault-password | tr -d '\n' > "$VAULT_PASS_FILE"
 chmod 600 "$VAULT_PASS_FILE"
 
 VAULT_CONTENT_FILE=$(mktemp /tmp/ansible-vault-content.XXXX)

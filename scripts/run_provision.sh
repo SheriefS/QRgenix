@@ -56,7 +56,11 @@ result = subprocess.run(
     ['ansible-vault', 'view',
      '/ansible/group_vars/qrgenix/vault.yml',
      '--vault-password-file', '/tmp/vault-pass.txt'],
-    capture_output=True, text=True, check=True)
+    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+if result.returncode != 0:
+    sys.stderr.write(result.stderr)
+    sys.exit(result.returncode)
 
 d = yaml.safe_load(result.stdout)
 sys.stdout.write(d['k3s_ssh_key'])

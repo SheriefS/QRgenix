@@ -1,26 +1,49 @@
+# Python
 venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+
+# Environment and credentials
 .env
+*.env
+.env.ec2
 *.env.ec2
+
+# TLS certificates and keys
 *.crt
 *.key
-qrgenix/generator/qrcode_core/output/
-qrgenix/scripts/docker_login.sh
-qrgenix/scripts/trigger_jenkins.sh
-create_github_issues.sh
-create_github_labels.sh
-.pytest_cache/
-.vscode/
-__archive__/
-nginx/
-docker-compose.local.yaml
-ci/
-k3s.yaml
-delete_old_versions.sh
+*.pem
+
+# Ansible vault
+ansible/group_vars/*/vault.yml
+
+# Terraform
 .terraform/
 *.tfstate
 *.tfstate.backup
-.env.ec2
-.env
-*.pem
+.terraform.lock.hcl
+
+# Scripts that shouldn't be in repo
+trigger_jenkins.sh
+docker_login.sh
+create_github_issues.sh
+create_github_labels.sh
+delete_old_versions.sh
+
+# Docker
+docker-compose.yml
+docker-compose.local.yaml
+
+# Editor
+.vscode/
+
+# Archives
+__archive__/
+
+# K3s
+k3s.yaml
+
+# CI legacy
+ci/
+nginx/

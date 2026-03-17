@@ -46,7 +46,7 @@ chmod 600 "$VAULT_CONTENT_FILE"
 SSH_KEY_PATH="/tmp/ansible-ssh-key-$$.txt"
 docker run --rm \
   -v "$VAULT_CONTENT_FILE:/ansible/group_vars/qrgenix/vault.yml:ro" \
-  -v "$VAULT_PASS_FILE:/tmp/vault-pass.txt:ro" \
+  -v "$VAULT_PASS_FILE:$VAULT_PASS_FILE:ro" \
   --entrypoint python3 \
   "$ANSIBLE_IMAGE" \
   -c "
@@ -55,7 +55,7 @@ import yaml, subprocess, sys
 result = subprocess.run(
     ['ansible-vault', 'view',
      '/ansible/group_vars/qrgenix/vault.yml',
-     '--vault-password-file', '/tmp/vault-pass.txt'],
+     '--vault-password-file', '$VAULT_PASS_FILE'],
     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 if result.returncode != 0:
@@ -76,13 +76,13 @@ docker run --rm \
   -v "$SSH_KEY_PATH:/root/.ssh/k3s_key:ro" \
   -v "$ANSIBLE_DIR:/ansible:ro" \
   -v "$VAULT_CONTENT_FILE:/ansible/group_vars/qrgenix/vault.yml:ro" \
-  -v "$VAULT_PASS_FILE:/tmp/vault-pass.txt:ro" \
+  -v "$VAULT_PASS_FILE:$VAULT_PASS_FILE:ro" \
   -e ANSIBLE_CONFIG=/ansible/ansible.cfg \
   -e ANSIBLE_ROLES_PATH=/ansible/roles \
   "$ANSIBLE_IMAGE" \
     -i /ansible/inventory/hosts.ini \
     /ansible/playbooks/"$PLAYBOOK" \
-    --vault-password-file /tmp/vault-pass.txt \
+    --vault-password-file "$VAULT_PASS_FILE" \
     --private-key /root/.ssh/k3s_key \
     -vv
 

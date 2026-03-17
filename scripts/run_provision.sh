@@ -47,7 +47,7 @@ chmod 600 "$VAULT_CONTENT_FILE"
 # ------------------------------------------------------------------
 SSH_KEY_PATH="/var/jenkins_home/tmp/ansible-ssh-key-$$.txt"
 docker run --rm \
-  -v "$VAULT_CONTENT_FILE:/ansible/group_vars/qrgenix/vault.yml:ro" \
+  -v "$VAULT_CONTENT_FILE:$VAULT_CONTENT_FILE:ro" \
   -v "$VAULT_PASS_FILE:$VAULT_PASS_FILE:ro" \
   --entrypoint python3 \
   "$ANSIBLE_IMAGE" \
@@ -56,7 +56,7 @@ import yaml, subprocess, sys
 
 result = subprocess.run(
     ['ansible-vault', 'view',
-     '/ansible/group_vars/qrgenix/vault.yml',
+     '$VAULT_CONTENT_FILE',
      '--vault-password-file', '$VAULT_PASS_FILE'],
     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
@@ -71,13 +71,13 @@ chmod 600 "$SSH_KEY_PATH"
 
 # ------------------------------------------------------------------
 # 4) Run the playbook
-#    The vault file is mounted at the path Ansible expects so that
-#    group_vars are available without it existing in the repo.
+#    The vault file is passed via --extra-vars to avoid mounting a
+#    file inside the read-only /ansible volume, which Docker rejects.
 # ------------------------------------------------------------------
 docker run --rm \
   -v "$SSH_KEY_PATH:/root/.ssh/k3s_key:ro" \
   -v "$ANSIBLE_DIR:/ansible:ro" \
-  -v "$VAULT_CONTENT_FILE:/ansible/group_vars/qrgenix/vault.yml:ro" \
+  -v "$VAULT_CONTENT_FILE:$VAULT_CONTENT_FILE:ro" \
   -v "$VAULT_PASS_FILE:$VAULT_PASS_FILE:ro" \
   -e ANSIBLE_CONFIG=/ansible/ansible.cfg \
   -e ANSIBLE_ROLES_PATH=/ansible/roles \
@@ -85,6 +85,7 @@ docker run --rm \
     -i /ansible/inventory/hosts.ini \
     /ansible/playbooks/"$PLAYBOOK" \
     --vault-password-file "$VAULT_PASS_FILE" \
+    --extra-vars "@$VAULT_CONTENT_FILE" \
     --private-key /root/.ssh/k3s_key \
     -vv
 

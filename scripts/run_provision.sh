@@ -32,18 +32,18 @@ _aws_secret() {
     --output text
 }
 
-VAULT_PASS_FILE=$(mktemp /tmp/ansible-vault-pass.XXXX)
+VAULT_PASS_FILE="/tmp/ansible-vault-pass-$$.txt"
 _aws_secret qrgenix/vault-password | tr -d '\n' > "$VAULT_PASS_FILE"
 chmod 600 "$VAULT_PASS_FILE"
 
-VAULT_CONTENT_FILE=$(mktemp /tmp/ansible-vault-content.XXXX)
+VAULT_CONTENT_FILE="/tmp/ansible-vault-content-$$.txt"
 _aws_secret qrgenix/ansible-vault-file > "$VAULT_CONTENT_FILE"
 chmod 600 "$VAULT_CONTENT_FILE"
 
 # ------------------------------------------------------------------
 # 3) Extract the SSH key from the vault
 # ------------------------------------------------------------------
-SSH_KEY_PATH=$(mktemp /tmp/ansible-ssh-key.XXXX)
+SSH_KEY_PATH="/tmp/ansible-ssh-key-$$.txt"
 docker run --rm \
   -v "$VAULT_CONTENT_FILE:/ansible/group_vars/qrgenix/vault.yml:ro" \
   -v "$VAULT_PASS_FILE:/tmp/vault-pass.txt:ro" \

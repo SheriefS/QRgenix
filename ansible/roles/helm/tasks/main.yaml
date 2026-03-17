@@ -1,30 +1,18 @@
 - name: Install dependencies for Helm
   apt:
     name:
-      - apt-transport-https
-      - gnupg
+      - curl
     state: present
 
-- name: Remove stale Helm GPG key if present
-  file:
-    path: /usr/share/keyrings/helm.gpg
-    state: absent
-
-- name: Add Helm GPG key
-  shell: curl --http1.1 -fsSL https://baltocdn.com/helm/signing.asc | gpg --dearmor -o /usr/share/keyrings/helm.gpg
-
-- name: Add Helm repo
-  copy:
-    dest: /etc/apt/sources.list.d/helm-stable-debian.list
-    content: |
-      deb [signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main
-
-- name: Update apt cache (show real errors)
-  shell: apt-get update 2>&1
-  register: apt_update_output
-  changed_when: false
+- name: Download Helm installer script
+  get_url:
+    url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    dest: /tmp/get-helm-3.sh
+    mode: "0755"
+  become: true
 
 - name: Install Helm
-  apt:
-    name: helm
-    state: present
+  shell: /tmp/get-helm-3.sh
+  args:
+    creates: /usr/local/bin/helm
+  become: true

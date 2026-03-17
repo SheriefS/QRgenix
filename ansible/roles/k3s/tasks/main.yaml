@@ -48,7 +48,6 @@
   apt:
     name: python3-pip
     state: present
-    update_cache: true
   become: true
 
 - name: Install Kubernetes Python bindings (via apt)

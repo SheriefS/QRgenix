@@ -6,7 +6,7 @@
     state: present
 
 - name: Add Helm GPG key
-  shell: curl https://baltocdn.com/helm/signing.asc | gpg --dearmor -o /usr/share/keyrings/helm.gpg
+  shell: curl --http1.1 https://baltocdn.com/helm/signing.asc | gpg --dearmor -o /usr/share/keyrings/helm.gpg
   args:
     creates: /usr/share/keyrings/helm.gpg
 

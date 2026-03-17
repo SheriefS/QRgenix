@@ -31,7 +31,7 @@
 
 - name: Copy Helm values files to app node (as normal user)
   copy:
-    src: "{{ playbook_dir }}/../helm/"
+    src: "/helm/"
     dest: /tmp/k8s/helm/
     mode: "0644"
     directory_mode: "0755"

@@ -77,6 +77,7 @@ chmod 600 "$SSH_KEY_PATH"
 docker run --rm \
   -v "$SSH_KEY_PATH:/root/.ssh/k3s_key:ro" \
   -v "$ANSIBLE_DIR:/ansible:ro" \
+  -v "$REPO_ROOT/helm:/helm:ro" \
   -v "$VAULT_CONTENT_FILE:$VAULT_CONTENT_FILE:ro" \
   -v "$VAULT_PASS_FILE:$VAULT_PASS_FILE:ro" \
   -e ANSIBLE_CONFIG=/ansible/ansible.cfg \

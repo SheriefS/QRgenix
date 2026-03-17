@@ -5,10 +5,13 @@
       - gnupg
     state: present
 
+- name: Remove stale Helm GPG key if present
+  file:
+    path: /usr/share/keyrings/helm.gpg
+    state: absent
+
 - name: Add Helm GPG key
-  shell: curl --http1.1 https://baltocdn.com/helm/signing.asc | gpg --dearmor -o /usr/share/keyrings/helm.gpg
-  args:
-    creates: /usr/share/keyrings/helm.gpg
+  shell: curl --http1.1 -fsSL https://baltocdn.com/helm/signing.asc | gpg --dearmor -o /usr/share/keyrings/helm.gpg
 
 - name: Add Helm repo
   copy:
@@ -16,8 +19,12 @@
     content: |
       deb [signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main
 
-- name: Update apt and install Helm
+- name: Update apt cache (show real errors)
+  shell: apt-get update 2>&1
+  register: apt_update_output
+  changed_when: false
+
+- name: Install Helm
   apt:
-    update_cache: yes
     name: helm
     state: present

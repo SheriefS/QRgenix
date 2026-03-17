@@ -9,6 +9,3 @@
     - k3s
     - helm
     - traefik
-    - k8s
-    - frontend
-    - backend

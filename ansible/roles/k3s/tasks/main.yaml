@@ -61,3 +61,30 @@
     name: python3-kubernetes
     state: present
   become: true
+
+- name: Ensure AWS CLI is installed
+  apt:
+    name: awscli
+    state: present
+  become: true
+
+- name: Fetch EC2 public IP from instance metadata (IMDSv2)
+  shell: |
+    TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
+      -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+    curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/public-ipv4
+  register: ec2_public_ip
+  become: true
+
+- name: Push patched kubeconfig to Secrets Manager
+  shell: |
+    KUBECONFIG_CONTENT=$(sed 's/127\.0\.0\.1/{{ ec2_public_ip.stdout }}/g' /etc/rancher/k3s/k3s.yaml)
+    aws secretsmanager describe-secret --secret-id qrgenix/kubeconfig 2>/dev/null \
+      && aws secretsmanager put-secret-value \
+           --secret-id qrgenix/kubeconfig \
+           --secret-string "$KUBECONFIG_CONTENT" \
+      || aws secretsmanager create-secret \
+           --name qrgenix/kubeconfig \
+           --secret-string "$KUBECONFIG_CONTENT"
+  become: true

@@ -71,6 +71,11 @@ resource "aws_instance" "jenkins_server" {
 
   user_data = data.template_file.jenkins_user_data.rendered
 
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
+
   tags = {
     Name = "jenkins-server"
   }
@@ -177,6 +182,11 @@ resource "aws_instance" "k3s_server" {
   vpc_security_group_ids = [aws_security_group.k3s_sg.id]
 
   user_data = data.template_file.k3s_user_data.rendered
+
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
 
   tags = {
     Name = "k3s-server"

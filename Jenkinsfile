@@ -130,11 +130,13 @@ pipeline {
       }
       agent { docker { image 'node:22-alpine'; args '-u root' } }
       steps {
-        dir('frontend-vite') { sh 'npm ci && npm run test' }
+        dir('frontend-vite') {
+          sh 'apk add --no-cache curl && npm ci && npm run test'
+        }
       }
       post {
-        success { node('built-in') { script { notifySlackSuccess('✅') } } }
-        failure { node('built-in') { script { notifySlackFailure('❌') } } }
+        success { script { notifySlackSuccess('✅') } }
+        failure { script { notifySlackFailure('❌') } }
       }
     }
 
@@ -150,8 +152,8 @@ pipeline {
         dir('backend-django') { sh 'pip install -r requirements.txt && pytest -q' }
       }
       post {
-        success { node('built-in') { script { notifySlackSuccess('✅') } } }
-        failure { node('built-in') { script { notifySlackFailure('❌') } } }
+        success { script { notifySlackSuccess('✅') } }
+        failure { script { notifySlackFailure('❌') } }
       }
     }
 

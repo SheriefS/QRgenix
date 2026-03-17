@@ -1,6 +1,7 @@
-- name: Update apt cache
-  apt:
-    update_cache: yes
+- name: Update apt cache (show real errors)
+  shell: apt-get update 2>&1
+  register: apt_update_output
+  changed_when: false
 
 - name: Upgrade all packages
   apt:

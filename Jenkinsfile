@@ -149,7 +149,7 @@ pipeline {
       }
       agent { docker { image 'python:3.12-slim'; args '-u root' } }
       steps {
-        dir('backend-django') { sh 'apt-get install -y --no-install-recommends curl && pip install -r requirements.txt && pytest -q' }
+        dir('backend-django') { sh 'apt-get update && apt-get install -y --no-install-recommends curl && pip install -r requirements.txt && pytest -q' }
       }
       post {
         success { script { notifySlackSuccess('✅') } }

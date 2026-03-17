@@ -62,10 +62,43 @@
     state: present
   become: true
 
-- name: Ensure AWS CLI is installed
+- name: Ensure unzip is installed
   apt:
-    name: awscli
+    name: unzip
     state: present
+  become: true
+
+- name: Download AWS CLI v2 installer
+  get_url:
+    url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+    dest: /tmp/awscliv2.zip
+    mode: "0644"
+  args:
+    creates: /usr/local/bin/aws
+  become: true
+
+- name: Unzip AWS CLI v2 installer
+  unarchive:
+    src: /tmp/awscliv2.zip
+    dest: /tmp
+    remote_src: true
+  args:
+    creates: /usr/local/bin/aws
+  become: true
+
+- name: Install AWS CLI v2
+  shell: /tmp/aws/install
+  args:
+    creates: /usr/local/bin/aws
+  become: true
+
+- name: Clean up AWS CLI installer files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/awscliv2.zip
+    - /tmp/aws
   become: true
 
 - name: Fetch EC2 public IP from instance metadata (IMDSv2)

@@ -133,8 +133,8 @@ pipeline {
         dir('frontend-vite') { sh 'npm ci && npm run test' }
       }
       post {
-        success { script { notifySlackSuccess('✅') } }
-        failure { script { notifySlackFailure('❌') } }
+        success { node('built-in') { script { notifySlackSuccess('✅') } } }
+        failure { node('built-in') { script { notifySlackFailure('❌') } } }
       }
     }
 
@@ -150,8 +150,8 @@ pipeline {
         dir('backend-django') { sh 'pip install -r requirements.txt && pytest -q' }
       }
       post {
-        success { script { notifySlackSuccess('✅') } }
-        failure { script { notifySlackFailure('❌') } }
+        success { node('built-in') { script { notifySlackSuccess('✅') } } }
+        failure { node('built-in') { script { notifySlackFailure('❌') } } }
       }
     }
 

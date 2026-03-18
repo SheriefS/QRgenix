@@ -358,7 +358,7 @@ def fetchKubeconfig() {
   ).trim()
   sh "mkdir -p /var/jenkins_home/tmp"
   writeFile file: path, text: content
-  sh "chmod 600 '${path}'"
+  sh "chmod 644 '${path}'"
   sh "cat '${path}' | head -5"
   return path
 }

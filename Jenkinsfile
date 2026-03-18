@@ -341,14 +341,19 @@ def notifySlackSuccess(e) { notifySlack(e, "Stage Succeeded: ${env.STAGE_NAME}")
 
 def fetchKubeconfig() {
   def path = "/var/jenkins_home/tmp/kubeconfig-${env.BUILD_NUMBER}.yaml"
-  sh """
-    mkdir -p /var/jenkins_home/tmp
-    docker run --rm --network host amazon/aws-cli \
-      secretsmanager get-secret-value \
-      --secret-id qrgenix/kubeconfig \
-      --query SecretString \
-      --output text > "${path}"
-    chmod 600 "${path}"
-  """
+  def content = sh(
+    script: '''
+      docker run --rm --network host amazon/aws-cli \
+        secretsmanager get-secret-value \
+        --secret-id qrgenix/kubeconfig \
+        --query SecretString \
+        --output text
+    ''',
+    returnStdout: true
+  ).trim()
+  sh "mkdir -p /var/jenkins_home/tmp"
+  writeFile file: path, text: content
+  sh "chmod 600 '${path}'"
+  sh "cat '${path}' | head -5"
   return path
 }

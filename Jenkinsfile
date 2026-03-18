@@ -217,6 +217,7 @@ pipeline {
         }
 
         stage('Init Docker Config') {
+          when { anyOf { expression { env.BACKEND_CHANGED == 'true' }; expression { env.FRONTEND_CHANGED == 'true' } } }
           steps {
             script {
               def tmpDir = sh(script: 'mktemp -d', returnStdout: true).trim()
@@ -231,6 +232,7 @@ pipeline {
         }
 
         stage('Docker Login') {
+          when { anyOf { expression { env.BACKEND_CHANGED == 'true' }; expression { env.FRONTEND_CHANGED == 'true' } } }
           steps {
             sh '''
               set +x
@@ -267,6 +269,36 @@ pipeline {
           }
         }
 
+        /* --------------- sync image pull secret --------------- */
+        stage('Sync image pull secret') {
+          when { anyOf { expression { env.BACKEND_CHANGED == 'true' }; expression { env.FRONTEND_CHANGED == 'true' } } }
+          steps {
+            script {
+              def kcfg = fetchKubeconfig()
+              // Ensure namespace exists before writing the secret
+              sh "docker run --rm --entrypoint sh -e KUBECONFIG=/root/.kube/config -v '${kcfg}:/root/.kube/config:ro' bitnami/kubectl:latest -c 'kubectl create namespace qrgenix --dry-run=client -o yaml | kubectl apply -f -'"
+              sh """
+                set +x
+                docker run --rm --entrypoint sh \
+                  -e KUBECONFIG=/root/.kube/config \
+                  -v '${kcfg}:/root/.kube/config:ro' \
+                  bitnami/kubectl:latest \
+                  -c "kubectl create secret docker-registry ghcr-secret \
+                        --docker-server=ghcr.io \
+                        --docker-username=${env.GITHUB_USER} \
+                        --docker-password='${env.GHCR_TOKEN}' \
+                        --namespace=qrgenix \
+                        --dry-run=client -o yaml | kubectl apply -f -"
+              """
+            }
+          }
+          post {
+            always { sh "rm -f /var/jenkins_home/tmp/kubeconfig-${env.BUILD_NUMBER}.yaml" }
+            success { script { notifySlackSuccess('🔑') } }
+            failure { script { notifySlackFailure('❌') } }
+          }
+        }
+
         /* --------------- apply manifests via kubectl --------------- */
         stage('Apply manifests') {
           when { expression { env.K8S_CHANGED == 'true' || env.PIPELINE_CHANGED == 'true' } }
@@ -281,32 +313,9 @@ pipeline {
               // Step 2: wait until namespace is active
               sh "${kubectlBase} wait --for=jsonpath='{.status.phase}'=Active namespace/qrgenix --timeout=30s"
 
-              // Step 3: create/update ghcr imagePullSecret
-              def ghcrToken = sh(script: '''
-                docker run --rm --network host amazon/aws-cli \
-                  secretsmanager get-secret-value \
-                  --secret-id qrgenix/ghcr-token \
-                  --query SecretString \
-                  --output text
-              ''', returnStdout: true).trim()
-
-              sh """
-                set +x
-                docker run --rm --entrypoint sh \
-                  -e KUBECONFIG=/root/.kube/config \
-                  -v '${kcfg}:/root/.kube/config:ro' \
-                  bitnami/kubectl:latest \
-                  -c "kubectl create secret docker-registry ghcr-secret \
-                        --docker-server=ghcr.io \
-                        --docker-username=${env.GITHUB_USER} \
-                        --docker-password='${ghcrToken}' \
-                        --namespace=qrgenix \
-                        --dry-run=client -o yaml | kubectl apply -f -"
-              """
-
               sleep 3
 
-              // Step 4: apply everything
+              // Step 3: apply everything
               sh """
                 ${kubectlBase} \
                   apply --recursive --prune \
@@ -353,8 +362,7 @@ pipeline {
     always {
       deleteDir()
       sh 'docker system prune -f'
-      echo "Cleaning up Docker config at: ${env.DOCKER_CONFIG}"
-      sh 'rm -rf "$DOCKER_CONFIG"'
+      sh 'if [ -n "$DOCKER_CONFIG" ]; then rm -rf "$DOCKER_CONFIG"; fi'
     }
     failure  { script { notifySlack('❌', 'Pipeline Failed') } }
     success  { script { notifySlack('✅', 'Pipeline Succeeded') } }

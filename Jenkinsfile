@@ -273,12 +273,19 @@ pipeline {
           steps {
             script {
               def kcfg = fetchKubeconfig()
+              def kubectlBase = "docker run --rm -e KUBECONFIG=/root/.kube/config -v '${kcfg}:/root/.kube/config:ro' -v \"\$(pwd)/k8s:/k8s:ro\" bitnami/kubectl:latest"
+
+              // Step 1: apply namespace first
+              sh "${kubectlBase} apply -f /k8s/staging/namespace.yaml --validate=false"
+
+              // Step 2: wait until namespace is active
+              sh "${kubectlBase} wait --for=jsonpath='{.status.phase}'=Active namespace/qrgenix --timeout=30s"
+
+              sleep 3
+
+              // Step 3: apply everything
               sh """
-                docker run --rm \
-                  -e KUBECONFIG=/root/.kube/config \
-                  -v "${kcfg}:/root/.kube/config:ro" \
-                  -v "\$(pwd)/k8s:/k8s:ro" \
-                  bitnami/kubectl:latest \
+                ${kubectlBase} \
                   apply --recursive --prune \
                     --filename /k8s/staging \
                     --selector app.kubernetes.io/managed-by=qrgenix \

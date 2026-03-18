@@ -9,8 +9,6 @@ pipeline {
     GITHUB_USER   = 'sheriefs'
     VERSION       = "${BUILD_NUMBER}"
 
-    // kubeconfig is the only Jenkins-managed credential — everything else comes from Secrets Manager
-    KCFG_FILE_ID  = 'kubeconfig'
     DOCKER_CONFIG = ''
   }
 
@@ -234,7 +232,10 @@ pipeline {
 
         stage('Docker Login') {
           steps {
-            sh 'echo "$GHCR_TOKEN" | docker login ghcr.io -u $GITHUB_USER --password-stdin'
+            sh '''
+              set +x
+              echo "$GHCR_TOKEN" | docker login ghcr.io -u $GITHUB_USER --password-stdin
+            '''
           }
           post {
             success { script { notifySlackSuccess('ℹ️') } }
@@ -269,18 +270,23 @@ pipeline {
         /* --------------- apply manifests via kubectl --------------- */
         stage('Apply manifests') {
           when { expression { env.K8S_CHANGED == 'true' || env.PIPELINE_CHANGED == 'true' } }
-          agent { docker { image 'bitnami/kubectl:latest'; args '-u root' } }
           steps {
-            withCredentials([file(credentialsId: env.KCFG_FILE_ID, variable: 'KUBECONFIG')]) {
-              sh '''
-                kubectl apply --recursive --prune \
-                  --filename k8s/staging \
-                  --selector app.kubernetes.io/managed-by=qrgenix \
-                  --namespace qrgenix
-              '''
+            script {
+              def kcfg = fetchKubeconfig()
+              sh """
+                docker run --rm \
+                  -v "${kcfg}:/root/.kube/config:ro" \
+                  -v "\$(pwd)/k8s:/k8s:ro" \
+                  bitnami/kubectl:latest \
+                  apply --recursive --prune \
+                    --filename /k8s/staging \
+                    --selector app.kubernetes.io/managed-by=qrgenix \
+                    --namespace qrgenix
+              """
             }
           }
           post {
+            always { sh "rm -f /var/jenkins_home/tmp/kubeconfig-${env.BUILD_NUMBER}.yaml" }
             success { script { notifySlackSuccess('⚙️') } }
             failure { script { notifySlackFailure('❌') } }
           }
@@ -289,16 +295,19 @@ pipeline {
         /* --------------- rollout via kubectl --------------- */
         stage('Rollout deployments') {
           when { anyOf { expression { env.BACKEND_CHANGED == 'true' }; expression { env.FRONTEND_CHANGED == 'true' } } }
-          agent { docker { image 'bitnami/kubectl:latest'; args '-u root' } }
           steps {
-            withCredentials([file(credentialsId: env.KCFG_FILE_ID, variable: 'KUBECONFIG')]) {
-              sh '''
-                if [ "$BACKEND_CHANGED"  = "true" ]; then kubectl rollout restart deployment qrgenix-backend  -n qrgenix; fi
-                if [ "$FRONTEND_CHANGED" = "true" ]; then kubectl rollout restart deployment qrgenix-frontend -n qrgenix; fi
-              '''
+            script {
+              def kcfg = fetchKubeconfig()
+              if (env.BACKEND_CHANGED == 'true') {
+                sh "docker run --rm -v '${kcfg}:/root/.kube/config:ro' bitnami/kubectl:latest rollout restart deployment qrgenix-backend -n qrgenix"
+              }
+              if (env.FRONTEND_CHANGED == 'true') {
+                sh "docker run --rm -v '${kcfg}:/root/.kube/config:ro' bitnami/kubectl:latest rollout restart deployment qrgenix-frontend -n qrgenix"
+              }
             }
           }
           post {
+            always { sh "rm -f /var/jenkins_home/tmp/kubeconfig-${env.BUILD_NUMBER}.yaml" }
             success { script { notifySlackSuccess('🚢') } }
             failure { script { notifySlackFailure('❌') } }
           }
@@ -328,3 +337,17 @@ def notifySlack(String emoji, String status) {
 
 def notifySlackFailure(e) { notifySlack(e, "Stage Failed: ${env.STAGE_NAME}") }
 def notifySlackSuccess(e) { notifySlack(e, "Stage Succeeded: ${env.STAGE_NAME}") }
+
+def fetchKubeconfig() {
+  def path = "/var/jenkins_home/tmp/kubeconfig-${env.BUILD_NUMBER}.yaml"
+  sh """
+    mkdir -p /var/jenkins_home/tmp
+    docker run --rm --network host amazon/aws-cli \
+      secretsmanager get-secret-value \
+      --secret-id qrgenix/kubeconfig \
+      --query SecretString \
+      --output text > "${path}"
+    chmod 600 "${path}"
+  """
+  return path
+}

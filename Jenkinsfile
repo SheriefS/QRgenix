@@ -281,7 +281,8 @@ pipeline {
                   apply --recursive --prune \
                     --filename /k8s/staging \
                     --selector app.kubernetes.io/managed-by=qrgenix \
-                    --namespace qrgenix
+                    --namespace qrgenix \
+                    --validate=false
               """
             }
           }

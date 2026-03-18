@@ -281,9 +281,32 @@ pipeline {
               // Step 2: wait until namespace is active
               sh "${kubectlBase} wait --for=jsonpath='{.status.phase}'=Active namespace/qrgenix --timeout=30s"
 
+              // Step 3: create/update ghcr imagePullSecret
+              def ghcrToken = sh(script: '''
+                docker run --rm --network host amazon/aws-cli \
+                  secretsmanager get-secret-value \
+                  --secret-id qrgenix/ghcr-token \
+                  --query SecretString \
+                  --output text
+              ''', returnStdout: true).trim()
+
+              sh """
+                set +x
+                docker run --rm --entrypoint sh \
+                  -e KUBECONFIG=/root/.kube/config \
+                  -v '${kcfg}:/root/.kube/config:ro' \
+                  bitnami/kubectl:latest \
+                  -c "kubectl create secret docker-registry ghcr-secret \
+                        --docker-server=ghcr.io \
+                        --docker-username=${env.GITHUB_USER} \
+                        --docker-password='${ghcrToken}' \
+                        --namespace=qrgenix \
+                        --dry-run=client -o yaml | kubectl apply -f -"
+              """
+
               sleep 3
 
-              // Step 3: apply everything
+              // Step 4: apply everything
               sh """
                 ${kubectlBase} \
                   apply --recursive --prune \

@@ -275,6 +275,7 @@ pipeline {
               def kcfg = fetchKubeconfig()
               sh """
                 docker run --rm \
+                  -e KUBECONFIG=/root/.kube/config \
                   -v "${kcfg}:/root/.kube/config:ro" \
                   -v "\$(pwd)/k8s:/k8s:ro" \
                   bitnami/kubectl:latest \
@@ -300,10 +301,10 @@ pipeline {
             script {
               def kcfg = fetchKubeconfig()
               if (env.BACKEND_CHANGED == 'true') {
-                sh "docker run --rm -v '${kcfg}:/root/.kube/config:ro' bitnami/kubectl:latest rollout restart deployment qrgenix-backend -n qrgenix"
+                kubectlRollout(kcfg, 'qrgenix-backend')
               }
               if (env.FRONTEND_CHANGED == 'true') {
-                sh "docker run --rm -v '${kcfg}:/root/.kube/config:ro' bitnami/kubectl:latest rollout restart deployment qrgenix-frontend -n qrgenix"
+                kubectlRollout(kcfg, 'qrgenix-frontend')
               }
             }
           }
@@ -338,6 +339,10 @@ def notifySlack(String emoji, String status) {
 
 def notifySlackFailure(e) { notifySlack(e, "Stage Failed: ${env.STAGE_NAME}") }
 def notifySlackSuccess(e) { notifySlack(e, "Stage Succeeded: ${env.STAGE_NAME}") }
+
+def kubectlRollout(String kcfg, String deployment) {
+  sh "docker run --rm -e KUBECONFIG=/root/.kube/config -v '${kcfg}:/root/.kube/config:ro' bitnami/kubectl:latest rollout restart deployment ${deployment} -n qrgenix"
+}
 
 def fetchKubeconfig() {
   def path = "/var/jenkins_home/tmp/kubeconfig-${env.BUILD_NUMBER}.yaml"

@@ -9,8 +9,6 @@ pipeline {
     GITHUB_USER   = 'sheriefs'
     VERSION       = "${BUILD_NUMBER}"
 
-    // kubeconfig is the only Jenkins-managed credential — everything else comes from Secrets Manager
-    KCFG_FILE_ID  = 'kubeconfig'
     DOCKER_CONFIG = ''
   }
 
@@ -128,9 +126,11 @@ pipeline {
           expression { env.FRONTEND_CHANGED == 'true' }
         }
       }
-      agent { docker { image 'node:22.16.0'; args '-u root' } }
+      agent { docker { image 'node:22-alpine'; args '-u root' } }
       steps {
-        dir('frontend-vite') { sh 'npm ci && npm run test' }
+        dir('frontend-vite') {
+          sh 'apk add --no-cache curl && npm ci && npm run test'
+        }
       }
       post {
         success { script { notifySlackSuccess('✅') } }
@@ -145,9 +145,9 @@ pipeline {
           expression { env.BACKEND_CHANGED == 'true' }
         }
       }
-      agent { docker { image 'python:3.12.3'; args '-u root' } }
+      agent { docker { image 'python:3.12-slim'; args '-u root' } }
       steps {
-        dir('backend-django') { sh 'pip install -r requirements.txt && pytest -q' }
+        dir('backend-django') { sh 'apt-get update && apt-get install -y --no-install-recommends curl && pip install -r requirements.txt && pytest -q' }
       }
       post {
         success { script { notifySlackSuccess('✅') } }
@@ -217,6 +217,7 @@ pipeline {
         }
 
         stage('Init Docker Config') {
+          when { anyOf { expression { env.BACKEND_CHANGED == 'true' }; expression { env.FRONTEND_CHANGED == 'true' } } }
           steps {
             script {
               def tmpDir = sh(script: 'mktemp -d', returnStdout: true).trim()
@@ -231,8 +232,12 @@ pipeline {
         }
 
         stage('Docker Login') {
+          when { anyOf { expression { env.BACKEND_CHANGED == 'true' }; expression { env.FRONTEND_CHANGED == 'true' } } }
           steps {
-            sh 'echo "$GHCR_TOKEN" | docker login ghcr.io -u $GITHUB_USER --password-stdin'
+            sh '''
+              set +x
+              echo "$GHCR_TOKEN" | docker login ghcr.io -u $GITHUB_USER --password-stdin
+            '''
           }
           post {
             success { script { notifySlackSuccess('ℹ️') } }
@@ -264,21 +269,65 @@ pipeline {
           }
         }
 
-        /* --------------- apply manifests via kubectl --------------- */
-        stage('Apply manifests') {
-          when { expression { env.K8S_CHANGED == 'true' || env.PIPELINE_CHANGED == 'true' } }
-          agent { docker { image 'bitnami/kubectl:latest'; args '-u root' } }
+        /* --------------- sync image pull secret --------------- */
+        stage('Sync image pull secret') {
+          when { anyOf { expression { env.BACKEND_CHANGED == 'true' }; expression { env.FRONTEND_CHANGED == 'true' } } }
           steps {
-            withCredentials([file(credentialsId: env.KCFG_FILE_ID, variable: 'KUBECONFIG')]) {
-              sh '''
-                kubectl apply --recursive --prune \
-                  --filename k8s/staging \
-                  --selector app.kubernetes.io/managed-by=qrgenix \
-                  --namespace qrgenix
-              '''
+            script {
+              def kcfg = fetchKubeconfig()
+              // Ensure namespace exists before writing the secret
+              sh "docker run --rm --entrypoint sh -e KUBECONFIG=/root/.kube/config -v '${kcfg}:/root/.kube/config:ro' bitnami/kubectl:latest -c 'kubectl create namespace qrgenix --dry-run=client -o yaml | kubectl apply -f -'"
+              sh """
+                set +x
+                docker run --rm --entrypoint sh \
+                  -e KUBECONFIG=/root/.kube/config \
+                  -v '${kcfg}:/root/.kube/config:ro' \
+                  bitnami/kubectl:latest \
+                  -c "kubectl create secret docker-registry ghcr-secret \
+                        --docker-server=ghcr.io \
+                        --docker-username=${env.GITHUB_USER} \
+                        --docker-password='${env.GHCR_TOKEN}' \
+                        --namespace=qrgenix \
+                        --dry-run=client -o yaml | kubectl apply -f -"
+              """
             }
           }
           post {
+            always { sh "rm -f /var/jenkins_home/tmp/kubeconfig-${env.BUILD_NUMBER}.yaml" }
+            success { script { notifySlackSuccess('🔑') } }
+            failure { script { notifySlackFailure('❌') } }
+          }
+        }
+
+        /* --------------- apply manifests via kubectl --------------- */
+        stage('Apply manifests') {
+          when { expression { env.K8S_CHANGED == 'true' || env.PIPELINE_CHANGED == 'true' } }
+          steps {
+            script {
+              def kcfg = fetchKubeconfig()
+              def kubectlBase = "docker run --rm -e KUBECONFIG=/root/.kube/config -v '${kcfg}:/root/.kube/config:ro' -v \"\$(pwd)/k8s:/k8s:ro\" bitnami/kubectl:latest"
+
+              // Step 1: apply namespace first
+              sh "${kubectlBase} apply -f /k8s/staging/namespace.yaml --validate=false"
+
+              // Step 2: wait until namespace is active
+              sh "${kubectlBase} wait --for=jsonpath='{.status.phase}'=Active namespace/qrgenix --timeout=30s"
+
+              sleep 3
+
+              // Step 3: apply everything
+              sh """
+                ${kubectlBase} \
+                  apply --recursive --prune \
+                    --filename /k8s/staging \
+                    --selector app.kubernetes.io/managed-by=qrgenix \
+                    --namespace qrgenix \
+                    --validate=false
+              """
+            }
+          }
+          post {
+            always { sh "rm -f /var/jenkins_home/tmp/kubeconfig-${env.BUILD_NUMBER}.yaml" }
             success { script { notifySlackSuccess('⚙️') } }
             failure { script { notifySlackFailure('❌') } }
           }
@@ -287,16 +336,19 @@ pipeline {
         /* --------------- rollout via kubectl --------------- */
         stage('Rollout deployments') {
           when { anyOf { expression { env.BACKEND_CHANGED == 'true' }; expression { env.FRONTEND_CHANGED == 'true' } } }
-          agent { docker { image 'bitnami/kubectl:latest'; args '-u root' } }
           steps {
-            withCredentials([file(credentialsId: env.KCFG_FILE_ID, variable: 'KUBECONFIG')]) {
-              sh '''
-                if [ "$BACKEND_CHANGED"  = "true" ]; then kubectl rollout restart deployment qrgenix-backend  -n qrgenix; fi
-                if [ "$FRONTEND_CHANGED" = "true" ]; then kubectl rollout restart deployment qrgenix-frontend -n qrgenix; fi
-              '''
+            script {
+              def kcfg = fetchKubeconfig()
+              if (env.BACKEND_CHANGED == 'true') {
+                kubectlRollout(kcfg, 'qrgenix-backend')
+              }
+              if (env.FRONTEND_CHANGED == 'true') {
+                kubectlRollout(kcfg, 'qrgenix-frontend')
+              }
             }
           }
           post {
+            always { sh "rm -f /var/jenkins_home/tmp/kubeconfig-${env.BUILD_NUMBER}.yaml" }
             success { script { notifySlackSuccess('🚢') } }
             failure { script { notifySlackFailure('❌') } }
           }
@@ -309,8 +361,8 @@ pipeline {
   post {
     always {
       deleteDir()
-      echo "Cleaning up Docker config at: ${env.DOCKER_CONFIG}"
-      sh 'rm -rf "$DOCKER_CONFIG"'
+      sh 'docker system prune -f'
+      sh 'if [ -n "$DOCKER_CONFIG" ]; then rm -rf "$DOCKER_CONFIG"; fi'
     }
     failure  { script { notifySlack('❌', 'Pipeline Failed') } }
     success  { script { notifySlack('✅', 'Pipeline Succeeded') } }
@@ -325,3 +377,26 @@ def notifySlack(String emoji, String status) {
 
 def notifySlackFailure(e) { notifySlack(e, "Stage Failed: ${env.STAGE_NAME}") }
 def notifySlackSuccess(e) { notifySlack(e, "Stage Succeeded: ${env.STAGE_NAME}") }
+
+def kubectlRollout(String kcfg, String deployment) {
+  sh "docker run --rm -e KUBECONFIG=/root/.kube/config -v '${kcfg}:/root/.kube/config:ro' bitnami/kubectl:latest rollout restart deployment ${deployment} -n qrgenix"
+}
+
+def fetchKubeconfig() {
+  def path = "/var/jenkins_home/tmp/kubeconfig-${env.BUILD_NUMBER}.yaml"
+  def content = sh(
+    script: '''
+      docker run --rm --network host amazon/aws-cli \
+        secretsmanager get-secret-value \
+        --secret-id qrgenix/kubeconfig \
+        --query SecretString \
+        --output text
+    ''',
+    returnStdout: true
+  ).trim()
+  sh "mkdir -p /var/jenkins_home/tmp"
+  writeFile file: path, text: content
+  sh "chmod 644 '${path}'"
+  sh "cat '${path}' | head -5"
+  return path
+}

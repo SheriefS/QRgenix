@@ -13,14 +13,38 @@
     mode: "0777"
   become: true
 
-- name: 🔍 Print directory ownership and permissions for debug
-  shell: ls -ld /tmp/k8s/helm
-  register: helm_dir_info
+- name: Disable K3s built-in Traefik
+  copy:
+    dest: /etc/rancher/k3s/config.yaml
+    content: |
+      disable:
+        - traefik
+    mode: "0644"
   become: true
+  register: k3s_config
 
-- name: Show Helm staging dir info
-  debug:
-    msg: "{{ helm_dir_info.stdout }}"
+- name: Restart K3s to remove built-in Traefik
+  systemd:
+    name: k3s
+    state: restarted
+  become: true
+  when: k3s_config.changed
+
+- name: Wait for K3s API to be ready after restart
+  wait_for:
+    host: 127.0.0.1
+    port: 6443
+    delay: 5
+    timeout: 60
+  when: k3s_config.changed
+
+- name: Delete built-in Traefik IngressClass if present
+  kubernetes.core.k8s:
+    api_version: networking.k8s.io/v1
+    kind: IngressClass
+    name: traefik
+    state: absent
+  ignore_errors: true
 
 - name: Create namespace for Traefik
   kubernetes.core.k8s:
@@ -31,7 +55,7 @@
 
 - name: Copy Helm values files to app node (as normal user)
   copy:
-    src: "{{ playbook_dir }}/../helm/"
+    src: "/helm/"
     dest: /tmp/k8s/helm/
     mode: "0644"
     directory_mode: "0755"
@@ -52,8 +76,3 @@
     --create-namespace
     -f /tmp/k8s/helm/traefik-values.yaml
   become: true
-# - name: Clean up Helm files
-#   file:
-#     path: /tmp/k8s/helm/
-#     state: absent
-#   become: true

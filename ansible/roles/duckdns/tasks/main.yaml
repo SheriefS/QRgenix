@@ -1,0 +1,36 @@
+---
+- name: Create DuckDNS updater script
+  copy:
+    dest: /usr/local/bin/duckdns-update.sh
+    mode: "0750"
+    owner: root
+    group: root
+    content: |
+      #!/bin/bash
+      curl -fsSL \
+        "https://www.duckdns.org/update?domains={{ duckdns_domain }}&token={{ duckdns_token }}&ip=" \
+        -o /var/log/duckdns.log 2>&1
+
+- name: Install DuckDNS systemd one-shot service
+  copy:
+    dest: /etc/systemd/system/duckdns-update.service
+    content: |
+      [Unit]
+      Description=DuckDNS IP update
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/duckdns-update.sh
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Enable and run DuckDNS update service
+  systemd:
+    name: duckdns-update
+    enabled: true
+    state: started
+    daemon_reload: true

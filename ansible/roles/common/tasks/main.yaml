@@ -1,0 +1,50 @@
+- name: Update apt cache (show real errors)
+  shell: apt-get update 2>&1
+  register: apt_update_output
+  changed_when: false
+
+- name: Upgrade all packages
+  apt:
+    upgrade: dist
+
+- name: Install essential packages
+  apt:
+    name:
+      - curl
+      - vim
+      - git
+      - ufw
+    state: present
+
+- name: UFW - allow SSH
+  ufw:
+    rule: allow
+    name: OpenSSH
+
+- name: UFW - allow HTTP
+  ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+
+- name: UFW - allow HTTPS
+  ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+
+- name: UFW - allow K3s API
+  ufw:
+    rule: allow
+    port: "6443"
+    proto: tcp
+
+- name: Ensure UFW is enabled
+  ufw:
+    state: enabled
+    policy: deny
+
+- name: Ensure rsync is installed
+  apt:
+    name: rsync
+    state: present

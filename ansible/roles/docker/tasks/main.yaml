@@ -4,7 +4,6 @@
   apt:
     name: docker.io
     state: present
-    update_cache: yes
 
 - name: Add current user to Docker group
   user:

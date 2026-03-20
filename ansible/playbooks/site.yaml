@@ -4,10 +4,8 @@
   become: true
   roles:
     - common
+    - duckdns
     - docker
     - k3s
     - helm
     - traefik
-    - k8s
-    - frontend
-    - backend

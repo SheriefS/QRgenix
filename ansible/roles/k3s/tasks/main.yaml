@@ -36,6 +36,12 @@
     mode: "0600"
   become: true
 
+- name: Make K3s kubeconfig world-readable
+  file:
+    path: /etc/rancher/k3s/k3s.yaml
+    mode: "0644"
+  become: true
+
 - name: Ensure kubectl is available via symlink
   file:
     src: /usr/local/bin/kubectl
@@ -48,11 +54,84 @@
   apt:
     name: python3-pip
     state: present
-    update_cache: true
   become: true
 
 - name: Install Kubernetes Python bindings (via apt)
   apt:
     name: python3-kubernetes
     state: present
+  become: true
+
+- name: Ensure unzip is installed
+  apt:
+    name: unzip
+    state: present
+  become: true
+
+- name: Check if AWS CLI v2 is already installed
+  stat:
+    path: /usr/local/bin/aws
+  register: aws_stat
+
+- name: Download AWS CLI v2 installer
+  get_url:
+    url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+    dest: /tmp/awscliv2.zip
+    mode: "0644"
+  when: not aws_stat.stat.exists
+  become: true
+
+- name: Unzip AWS CLI v2 installer
+  unarchive:
+    src: /tmp/awscliv2.zip
+    dest: /tmp
+    remote_src: true
+  when: not aws_stat.stat.exists
+  become: true
+
+- name: Install AWS CLI v2
+  shell: /tmp/aws/install
+  when: not aws_stat.stat.exists
+  become: true
+
+- name: Clean up AWS CLI installer files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/awscliv2.zip
+    - /tmp/aws
+  become: true
+
+- name: Fetch EC2 public and private IPs from instance metadata (IMDSv2)
+  shell: |
+    TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
+      -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+    curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/public-ipv4
+  register: ec2_public_ip
+  become: true
+
+- name: Fetch EC2 private IP from instance metadata (IMDSv2)
+  shell: |
+    TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
+      -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+    curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/local-ipv4
+  register: ec2_private_ip
+  become: true
+
+- name: Push patched kubeconfig to Secrets Manager
+  shell: |
+    KUBECONFIG_CONTENT=$(sed 's/127\.0\.0\.1/{{ ec2_private_ip.stdout }}/g' /etc/rancher/k3s/k3s.yaml)
+    ERROR=$(aws secretsmanager put-secret-value \
+      --secret-id qrgenix/kubeconfig \
+      --secret-string "$KUBECONFIG_CONTENT" 2>&1) \
+    || {
+      echo "$ERROR" | grep -q ResourceNotFoundException \
+        && aws secretsmanager create-secret \
+             --name qrgenix/kubeconfig \
+             --secret-string "$KUBECONFIG_CONTENT" \
+        || { echo "$ERROR" >&2; exit 1; }
+    }
   become: true

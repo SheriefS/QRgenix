@@ -48,3 +48,6 @@ k3s.yaml
 # CI legacy
 ci/
 nginx/
+
+# Claude Code memory
+memory/

@@ -26,4 +26,5 @@
   command: >
     helm upgrade --install secrets-provider-aws aws-secrets-manager/secrets-store-csi-driver-provider-aws
     --namespace kube-system
+    --set serviceAccount.create=false
   become: true

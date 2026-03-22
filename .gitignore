@@ -48,5 +48,11 @@ k3s.yaml
 
 # CI legacy
 ci/
+<<<<<<< HEAD
 #nginx /
+=======
+nginx/
+
+# Claude Code memory
+>>>>>>> 18aa6a2 (feat: add Secrets Store CSI Driver role and fix pipeline change detection)
 memory/

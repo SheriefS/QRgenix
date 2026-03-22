@@ -81,11 +81,14 @@ pipeline {
       }
     }
 
-    /* -------- Detect changes (sets RUN_FULL) -------- */
+    /* -------- Detect changes -------- */
     stage('Detect changes') {
       steps {
         script {
-          def diff = sh(script:'git diff --name-only origin/main...HEAD', returnStdout:true).trim().readLines()
+          def base = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: sh(
+                      script: 'git rev-parse HEAD~1', returnStdout: true
+                    ).trim()
+          def diff = sh(script: "git diff --name-only ${base} HEAD", returnStdout: true).trim().readLines()
 
           env.PIPELINE_CHANGED = diff.any {
             it ==~ /^Jenkinsfile$/ || it.startsWith('docker-compose')
@@ -94,9 +97,9 @@ pipeline {
           env.BACKEND_CHANGED  = diff.any { it.startsWith('backend-django/') } ? 'true' : 'false'
           env.FRONTEND_CHANGED = diff.any { it.startsWith('frontend-vite/') } ? 'true' : 'false'
           env.K8S_CHANGED      = diff.any { it.startsWith('k8s/') } ? 'true' : 'false'
-
-          env.RUN_FULL  = (env.BRANCH_NAME == 'main' || env.PIPELINE_CHANGED == 'true') ? 'true' : 'false'
-          env.TEST_FULL = (env.BRANCH_NAME != 'main' || env.PIPELINE_CHANGED == 'true') ? 'true' : 'false'
+          env.ANSIBLE_CHANGED  = diff.any {
+            it.startsWith('ansible/') || it == 'scripts/run_provision.sh'
+          } ? 'true' : 'false'
 
           if (env.PIPELINE_CHANGED == 'true') {
             env.BACKEND_CHANGED  = 'true'
@@ -108,8 +111,8 @@ pipeline {
           BACKEND_CHANGED : $BACKEND_CHANGED
           FRONTEND_CHANGED: $FRONTEND_CHANGED
           K8S_CHANGED     : $K8S_CHANGED
-          PIPELINE_CHANGED: $PIPELINE_CHANGED
-          RUN_FULL        : $RUN_FULL""".stripIndent()
+          ANSIBLE_CHANGED : $ANSIBLE_CHANGED
+          PIPELINE_CHANGED: $PIPELINE_CHANGED""".stripIndent()
         }
       }
       post {
@@ -118,14 +121,9 @@ pipeline {
       }
     }
 
-    /* --------------- Feature-branch unit tests --------------- */
+    /* --------------- Unit tests --------------- */
     stage('Frontend unit tests') {
-      when {
-        allOf {
-          expression { env.TEST_FULL == 'true' }
-          expression { env.FRONTEND_CHANGED == 'true' }
-        }
-      }
+      when { expression { env.FRONTEND_CHANGED == 'true' } }
       agent { docker { image 'node:22-alpine'; args '-u root' } }
       steps {
         dir('frontend-vite') {
@@ -139,12 +137,7 @@ pipeline {
     }
 
     stage('Backend unit tests') {
-      when {
-        allOf {
-          expression { env.TEST_FULL == 'true' }
-          expression { env.BACKEND_CHANGED == 'true' }
-        }
-      }
+      when { expression { env.BACKEND_CHANGED == 'true' } }
       agent { docker { image 'python:3.12-slim'; args '-u root' } }
       steps {
         dir('backend-django') { sh 'apt-get update && apt-get install -y --no-install-recommends curl && pip install -r requirements.txt && pytest -q' }
@@ -155,12 +148,25 @@ pipeline {
       }
     }
 
-    /* ======================= FULL BUILD & DEPLOY (RUN_FULL) ======================= */
-    stage('Full build/deploy') {
-      when { expression { env.RUN_FULL == 'true' } }
+    /* ======================= BUILD & DEPLOY ======================= */
+    stage('Build/deploy') {
+      when {
+        anyOf {
+          expression { env.BACKEND_CHANGED  == 'true' }
+          expression { env.FRONTEND_CHANGED == 'true' }
+          expression { env.K8S_CHANGED      == 'true' }
+          expression { env.ANSIBLE_CHANGED  == 'true' }
+        }
+      }
 
       stages {
         stage('Init image tags') {
+          when {
+            anyOf {
+              expression { env.BACKEND_CHANGED  == 'true' }
+              expression { env.FRONTEND_CHANGED == 'true' }
+            }
+          }
           steps {
             script {
               env.BACKEND_REPO  = "${GHCR_REGISTRY}/${env.GITHUB_USER}/${REPO}-backend"
@@ -299,9 +305,21 @@ pipeline {
           }
         }
 
+        /* --------------- provision cluster via Ansible --------------- */
+        stage('Provision cluster') {
+          when { expression { env.ANSIBLE_CHANGED == 'true' } }
+          steps {
+            sh 'bash scripts/run_provision.sh site.yaml'
+          }
+          post {
+            success { script { notifySlackSuccess('⚙️') } }
+            failure { script { notifySlackFailure('❌') } }
+          }
+        }
+
         /* --------------- apply manifests via kubectl --------------- */
         stage('Apply manifests') {
-          when { expression { env.K8S_CHANGED == 'true' || env.PIPELINE_CHANGED == 'true' } }
+          when { expression { env.K8S_CHANGED == 'true' } }
           steps {
             script {
               def kcfg = fetchKubeconfig()

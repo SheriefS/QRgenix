@@ -51,3 +51,4 @@ nginx/
 
 # Claude Code memory
 memory/
+scripts/close_issues.sh

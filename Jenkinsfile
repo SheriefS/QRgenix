@@ -319,7 +319,12 @@ pipeline {
 
         /* --------------- apply manifests via kubectl --------------- */
         stage('Apply manifests') {
-          when { expression { env.K8S_CHANGED == 'true' } }
+          when {
+            anyOf {
+              expression { env.K8S_CHANGED     == 'true' }
+              expression { env.ANSIBLE_CHANGED == 'true' }
+            }
+          }
           steps {
             script {
               def kcfg = fetchKubeconfig()

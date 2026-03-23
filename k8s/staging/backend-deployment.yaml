@@ -26,6 +26,29 @@ spec:
           env:
             - name: DJANGO_SETTINGS_MODULE
               value: qrgenix.settings
+            - name: DB_HOST
+              value: qrgenix-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: qrgenix-postgres
+                  key: dbname
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: qrgenix-postgres
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: qrgenix-postgres
+                  key: password
+            - name: AWS_STORAGE_BUCKET_NAME
+              value: "qrgenix-logo-media"
+            - name: AWS_S3_REGION_NAME
+              value: "us-east-2"
           resources:
             requests: { cpu: "100m", memory: "128Mi" }
             limits: { cpu: "500m", memory: "256Mi" }

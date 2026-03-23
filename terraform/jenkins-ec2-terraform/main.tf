@@ -245,3 +245,37 @@ data "template_file" "k3s_user_data" {
     aws_region             = var.aws_region
   }
 }
+
+# ── S3 bucket for logo media ──────────────────────────────────
+resource "aws_s3_bucket" "logo_media" {
+  bucket = "qrgenix-logo-media"
+
+  tags = {
+    Name = "qrgenix-logo-media"
+  }
+}
+
+resource "aws_iam_role_policy" "k3s_logo_media_s3" {
+  name = "k3s-logo-media-s3"
+  role = aws_iam_role.k3s.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+        ]
+        Resource = "${aws_s3_bucket.logo_media.arn}/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = aws_s3_bucket.logo_media.arn
+      }
+    ]
+  })
+}

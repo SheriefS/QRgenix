@@ -1,0 +1,61 @@
+# PostgreSQL Deployment
+# Mounts the CSI secrets volume to trigger K8s Secret sync,
+# then sources credentials from the synced qrgenix-postgres Secret.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qrgenix-postgres
+  namespace: qrgenix
+  labels:
+    app.kubernetes.io/managed-by: qrgenix
+    app: qrgenix-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qrgenix-postgres
+  template:
+    metadata:
+      labels:
+        app: qrgenix-postgres
+    spec:
+      volumes:
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: qrgenix-postgres
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+      containers:
+        - name: postgres
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: secrets-store
+              mountPath: /mnt/secrets
+              readOnly: true
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: qrgenix-postgres
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: qrgenix-postgres
+                  key: password
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: qrgenix-postgres
+                  key: dbname
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }

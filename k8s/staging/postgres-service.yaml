@@ -1,0 +1,16 @@
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: qrgenix-postgres
+  namespace: qrgenix
+  labels:
+    app.kubernetes.io/managed-by: qrgenix
+spec:
+  selector:
+    app: qrgenix-postgres
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP

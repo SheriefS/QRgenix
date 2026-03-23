@@ -1,6 +1,8 @@
 ---
-# Installs the Secrets Store CSI Driver and the AWS provider on the K3s cluster.
-# This enables pods to mount secrets from AWS Secrets Manager directly as volumes.
+# Installs the AWS Secrets Store CSI Driver provider for AWS on the K3s cluster.
+# The AWS provider chart bundles the core CSI driver as a dependency, so a single
+# Helm release is sufficient. syncSecret.enabled=true allows secrets to be synced
+# into native K8s Secret objects for use as env vars in pods.
 
 - name: Add Secrets Store CSI Driver Helm repo
   command: helm repo add secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
@@ -15,16 +17,9 @@
 - name: Update Helm repos
   command: helm repo update
 
-- name: Install Secrets Store CSI Driver
-  command: >
-    helm upgrade --install csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver
-    --namespace kube-system
-    --set syncSecret.enabled=true
-  become: true
-
-- name: Install AWS Secrets Manager provider
+- name: Install AWS Secrets Manager provider (includes CSI driver as dependency)
   command: >
     helm upgrade --install secrets-provider-aws aws-secrets-manager/secrets-store-csi-driver-provider-aws
     --namespace kube-system
-    --set serviceAccount.name=secrets-provider-aws
+    --set secrets-store-csi-driver.syncSecret.enabled=true
   become: true

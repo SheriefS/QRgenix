@@ -22,4 +22,5 @@
     helm upgrade --install secrets-provider-aws aws-secrets-manager/secrets-store-csi-driver-provider-aws
     --namespace kube-system
     --set secrets-store-csi-driver.syncSecret.enabled=true
+    --set awsRegion=us-east-2
   become: true

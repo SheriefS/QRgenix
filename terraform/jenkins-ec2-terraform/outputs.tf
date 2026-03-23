@@ -14,3 +14,8 @@ output "k3s_public_ip" {
 output "k3s_tailscale_url" {
   value = "https://${var.k3s_tailscale_hostname}.${var.tailscale_domain}"
 }
+
+output "logo_media_bucket" {
+  value       = aws_s3_bucket.logo_media.bucket
+  description = "S3 bucket name for logo media — use as AWS_STORAGE_BUCKET_NAME in backend-deployment.yaml"
+}

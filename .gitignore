@@ -31,6 +31,7 @@ docker_login.sh
 create_github_issues.sh
 create_github_labels.sh
 delete_old_versions.sh
+close_issues.sh
 
 # Docker
 docker-compose.yml
@@ -47,4 +48,5 @@ k3s.yaml
 
 # CI legacy
 ci/
-nginx/
+#nginx /
+memory/

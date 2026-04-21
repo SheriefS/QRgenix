@@ -1,0 +1,5 @@
+collections:
+  - name: artis3n.tailscale
+    version: "1.2.1"
+  - name: amazon.aws
+    version: "10.3.0"

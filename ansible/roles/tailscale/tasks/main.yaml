@@ -1,0 +1,37 @@
+# roles/tailscale/tasks/main.yaml
+- name: Fetch Tailscale authkey from AWS Secrets Manager
+  set_fact:
+    jenkins_tailscale_authkey: "{{ lookup('amazon.aws.secretsmanager_secret', 'tailscale/jenkins-auth-key', region='us-east-1') }}"
+
+- name: Install and configure Tailscale
+  include role:
+    name: artis3n.tailscale
+  vars:
+    tailscale_authkey: "{{ jenkins_tailscale_authkey}}"
+    tailscale_tags: ["jenkins"]
+    tailscale_args:
+      - "--accept-routes"
+      - "--hostname=jenkins-server"
+
+- name: Create Tailscale cert directory
+  file:
+    path: /etc/ssl/tailscale
+    state: directory
+    mode: "0755"
+
+- name: Generate Tailscale certificates
+  command: >
+    tailscale cert
+    --cert-file /etc/ssl/tailscale/jenkins-server.crt
+    --key-file /etc/ssl/tailscale/jenkins-server.key
+    jenkins-server
+
+- name: Set permissions on .cert file
+  file:
+    path: /etc/ssl/tailscale/jenkins-server.crt
+    mode: "0444"
+
+- name: Set permissions on .key file
+  file:
+    path: /etc/ssl/tailscale/jenkins-server.key
+    mode: "0400"

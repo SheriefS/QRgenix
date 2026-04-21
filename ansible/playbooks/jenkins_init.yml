@@ -1,0 +1,10 @@
+# jenkins_init.yaml
+- name: Initial Jenkins Setup
+  hosts: qrgenix
+  become: true
+  roles:
+    - common
+    - docker
+    - tailscale
+    - nginx
+    - jenkins

@@ -57,3 +57,4 @@ nginx/
 >>>>>>> 18aa6a2 (feat: add Secrets Store CSI Driver role and fix pipeline change detection)
 memory/
 scripts/close_issues.sh
+#nginx /

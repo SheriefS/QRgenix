@@ -1,0 +1,4 @@
+tailscale_hostname: k3s-server
+tailscale_secret_id: tailscale/k3s-auth-key
+ansible_ssh_private_key_file: ~/.ssh/k3s-key.pem
+tailscale_tags: ["k3s"]

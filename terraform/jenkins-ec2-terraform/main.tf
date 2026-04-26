@@ -3,6 +3,11 @@
 #############################################
 provider "aws" {
   region = var.aws_region
+  default_tags {
+    tags = {
+      project = "qrgenix"
+    }
+  }
 }
 
 data "aws_caller_identity" "current" {}
@@ -78,6 +83,7 @@ resource "aws_instance" "jenkins_server" {
 
   tags = {
     Name = "jenkins-server"
+    role = "jenkins"
   }
 }
 
@@ -190,6 +196,7 @@ resource "aws_instance" "k3s_server" {
 
   tags = {
     Name = "k3s-server"
+    role = "k3s"
   }
 }
 

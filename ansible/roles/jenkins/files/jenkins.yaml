@@ -1,0 +1,67 @@
+jenkins:
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_USER}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "github-pat"
+              username: "${GITHUB_USER}"
+              password: "${GITHUB_PAT}"
+              description: "GitHub PAT"
+          - usernamePassword:
+              scope: GLOBAL
+              id: "ghcr-pat"
+              username: "${GITHUB_USER}"
+              password: "${GHCR_PAT}"
+              description: "GHCR PAT"
+          - string:
+              scope: GLOBAL
+              id: "slack-webhook"
+              secret: "${SLACK_WEBHOOK}"
+              description: "Slack webhook"
+          - string:
+              scope: GLOBAL
+              id: "github-webhook"
+              secret: "${GITHUB_WEBHOOK}"
+              description: "Github webhook"
+          - string:
+              scope: GLOBAL
+              id: "github-api-token"
+              secret: "${GITHUB_PAT}"
+              description: "GitHub API token for server connection"
+unclassified:
+  githubPluginConfig:
+    configs:
+      - name: "GitHub"
+        apiUrl: "https://api.github.com"
+        credentialsId: "github-api-token"
+        manageHooks: true
+
+#jobs:
+#  - script: >
+#      multibranchPipelineJob('QRgenix') {
+#        branchSources {
+#          github {
+#            id('qrgenix-source')
+#            repoOwner('SheriefS')
+#            repository('QRgenix')
+#            credentialsId('github-pat')
+#          }
+#        }
+#        factory {
+#          workflowBranchProjectFactory {
+#            scriptPath('Jenkinsfile')
+#          }
+#        }
+#      }

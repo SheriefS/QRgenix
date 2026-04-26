@@ -1,4 +1,5 @@
----
+# /roles/k3s/tasks/main.yaml
+
 - name: Download K3s installer script
   get_url:
     url: https://get.k3s.io

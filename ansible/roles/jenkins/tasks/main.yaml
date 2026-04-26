@@ -1,0 +1,78 @@
+# /roles/jenkins/tasks/jenkins
+- name: Fetch credentials from AWS Secrets Manager
+  set_fact:
+    github_pat: "{{ lookup('amazon.aws.secretsmanager_secret', github_pat_secret_id, region=aws_region) }}"
+    github_webhook: "{{ lookup('amazon.aws.secretsmanager_secret', github_webhook_secret_id, region=aws_region) }}"
+    ghcr_pat: "{{ lookup('amazon.aws.secretsmanager_secret', ghcr_secret_id, region=aws_region) }}"
+    slack_webhook: "{{ lookup('amazon.aws.secretsmanager_secret', slack_secret_id, region=aws_region) }}"
+    jenkins_admin_pass: "{{ lookup('amazon.aws.secretsmanager_secret', jenkins_admin_password_secret_id, region=aws_region) }}"
+
+- name: Create Jenkins directory on host for persistence
+  file:
+    state: directory
+    path: /var/jenkins_home
+    group: 1000
+    owner: 1000
+
+- name: Get the DOCKER_GID
+  command: stat -c '%g' /var/run/docker.sock
+  register: docker_gid
+  changed_when: false
+
+- name: Copy Jenkins plugins file to the host
+  copy:
+    src: "{{ item }}"
+    dest: /var/jenkins_home/
+  loop:
+    - plugins.txt
+    - jenkins.yaml
+
+- name: Run the Jenkins container for plugins install
+  docker_container:
+    name: jenkins-plugin
+    image: jenkins/jenkins:lts
+    pull: missing
+    auto_remove: true
+    mounts:
+      - type: bind
+        source: /var/jenkins_home
+        target: /var/jenkins_home
+        read_only: false
+    command: jenkins-plugin-cli --plugin-file /var/jenkins_home/plugins.txt
+
+- name: Configure Jenkins with Jcasc
+  docker_container:
+    name: jenkins
+    image: jenkins/jenkins:lts
+    pull: always
+    restart_policy: unless-stopped
+    mounts:
+      - type: bind
+        source: /var/jenkins_home
+        target: /var/jenkins_home
+        read_only: false
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: false
+      - type: bind
+        source: /usr/bin/docker
+        target: /usr/bin/docker
+        read_only: true
+      - type: bind
+        source: /usr/libexec/docker/cli-plugins
+        target: /usr/libexec/docker/cli-plugins
+        read_only: true
+    published_ports:
+      - 127.0.0.1:8080:8080
+    groups:
+      - "{{  docker_gid.stdout }}"
+    env:
+      CASC_JENKINS_CONFIG: "/var/jenkins_home/jenkins.yaml"
+      JENKINS_ADMIN_USER: "{{ jenkins_admin_user }}"
+      JENKINS_ADMIN_PASSWORD: "{{ jenkins_admin_pass }}"
+      GITHUB_USER: "{{ ghcr_user }}"
+      GITHUB_PAT: "{{ github_pat }}"
+      GHCR_PAT: "{{ ghcr_pat }}"
+      SLACK_WEBHOOK: "{{ slack_webhook }}"
+      GITHUB_WEBHOOK: "{{ github_webhook }}"

@@ -1,0 +1,15 @@
+# Fetch all hosts in us-east-2, the hostname is the public DNS if it exists, otherwise the private IP address
+plugin: amazon.aws.aws_ec2
+regions:
+  - us-east-2
+filters:
+  tag:project: qrgenix
+keyed_groups:
+  - prefix: ""
+    separator: ""
+    key: tags.role
+compose:
+  ansible_host: public_dns_name
+#  ansible_user: "'ubuntu'"
+hostnames:
+  - tag:role

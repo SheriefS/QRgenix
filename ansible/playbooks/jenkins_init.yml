@@ -1,6 +1,6 @@
 # jenkins_init.yaml
 - name: Initial Jenkins Setup
-  hosts: qrgenix
+  hosts: jenkins
   become: true
   roles:
     - common

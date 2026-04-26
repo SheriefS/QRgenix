@@ -1,0 +1,28 @@
+# /roles/nginx/tasks/main.yaml
+
+- name: Install Nginx package via apt
+  apt:
+    name: nginx
+    state: present
+
+- name: Remove default Nginx config file
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Deploy Jenkins nginx config
+  template:
+    src: jenkins.conf.j2
+    dest: /etc/nginx/sites-available/jenkins
+
+- name: Create a symbolic link for the nginx site
+  file:
+    src: /etc/nginx/sites-available/jenkins
+    dest: /etc/nginx/sites-enabled/jenkins
+    state: link
+
+- name: Ensure nginx service is enabled
+  service:
+    name: nginx
+    state: started
+    enabled: true

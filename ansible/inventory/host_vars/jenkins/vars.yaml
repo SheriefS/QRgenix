@@ -1,5 +1,5 @@
 tailscale_hostname: jenkins-server
-tailscale_secret_id: tailscale/jenkins-auth-key
+#tailscale_secret_id: tailscale/jenkins-auth-key
 tailscale_tags: ["jenkins"]
 ansible_ssh_private_key_file: /home/tsukinobi/.ssh/stealth.pem
 github_pat_secret_id: qrgenix/github-pat

@@ -23,6 +23,8 @@
     --cert-file {{ tailscale_cert_path }}/{{ tailscale_hostname }}.{{ tailscale_domain }}.crt
     --key-file {{ tailscale_cert_path }}/{{ tailscale_hostname }}.{{ tailscale_domain }}.key
     {{ tailscale_hostname }}.{{ tailscale_domain }}
+  args:
+    creates: "{{ tailscale_cert_path }}/{{ tailscale_hostname }}.{{ tailscale_domain }}.key"
 
 - name: Set permissions on .cert file
   file:

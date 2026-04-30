@@ -1,12 +1,12 @@
 # site.yaml
-- name: Initial QRgenix Setup
-  hosts: qrgenix
+- name: Initial K3s Setup
+  hosts: k3s
   become: true
   roles:
     - common
+    - tailscale
     - duckdns
-    - docker
     - k3s
+    - kubeconfig
     - helm
     - traefik
-    - secrets-store-csi

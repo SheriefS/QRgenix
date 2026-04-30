@@ -1,11 +1,5 @@
 # traefik-values.yaml
 
-additionalArguments:
-  - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
-  - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-  - "--certificatesresolvers.letsencrypt.acme.email=lunarn8.io@gmail.com"
-  - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
-
 ports:
   web:
     port: 80
@@ -23,7 +17,7 @@ ports:
 
 ingressRoute:
   dashboard:
-    enabled: true
+    enabled: false
 
 persistence:
   enabled: true

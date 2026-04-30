@@ -164,6 +164,9 @@ resource "aws_iam_role_policy" "k3s_read_tailscale_secret" {
           "secretsmanager:PutSecretValue",
           "secretsmanager:CreateSecret",
           "secretsmanager:UpdateSecret",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:PutResourcePolicy",
+          "secretsmanager:GetResourcePolicy",
         ]
         Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:qrgenix/*"
       }

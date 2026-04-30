@@ -1,0 +1,39 @@
+- name: Fetch EC2 private IP from instance metadata
+  amazon.aws.ec2_metadata_facts:
+
+- name: Fetch current kubeconfig on AWS Secrets Manager
+  set_fact:
+    kubeconfig_secret: "{{ lookup('amazon.aws.secretsmanager_secret', kubeconfig_secret_id, region=aws_region, errors='ignore') | default('') }}"
+
+- name: Update the kubeconfig and push to AWS Secrets Manager
+  when: ansible_facts['ec2_local_ipv4'] not in kubeconfig_secret
+  block:
+    - name: Copy the kubeconfig for patching
+      copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: /tmp/kubeconfig
+        remote_src: true
+
+    - name: Update kubeconfig file with instance EC2 private IP
+      replace:
+        path: /tmp/kubeconfig
+        regexp: "127.0.0.1"
+        replace: "{{ ansible_facts['ec2_local_ipv4'] }}"
+
+    - name: Save the contents of the kubeconfig file
+      slurp:
+        src: /tmp/kubeconfig
+      register: k_config
+
+    - name: Push patched kubeconfig to Secrets Manager
+      community.aws.secretsmanager_secret:
+        name: "{{ kubeconfig_secret_id }}"
+        state: present
+        secret_type: string
+        region: "{{ aws_region }}"
+        secret: "{{ k_config.content | b64decode }}"
+
+    - name: Remove temporary patch kubeconfig
+      file:
+        path: /tmp/kubeconfig
+        state: absent

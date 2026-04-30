@@ -13,8 +13,6 @@
       - vim
       - git
       - ufw
-      - ca-certificates
-      - gnupg
     state: present
 #- name: UFW - allow SSH
 #  ufw:

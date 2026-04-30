@@ -1,78 +1,20 @@
 # Traefik ansible role
 
-- name: Fully remove existing Helm staging folder (force cleanup)
-  file:
-    path: /tmp/k8s/helm/
-    state: absent
-  become: true
-
-- name: Recreate Helm staging directory with proper permissions
-  file:
-    path: /tmp/k8s/helm
-    state: directory
-    mode: "0777"
-  become: true
-
-- name: Disable K3s built-in Traefik
-  copy:
-    dest: /etc/rancher/k3s/config.yaml
-    content: |
-      disable:
-        - traefik
-    mode: "0644"
-  become: true
-  register: k3s_config
-
-- name: Restart K3s to remove built-in Traefik
-  systemd:
-    name: k3s
-    state: restarted
-  become: true
-  when: k3s_config.changed
-
-- name: Wait for K3s API to be ready after restart
-  wait_for:
-    host: 127.0.0.1
-    port: 6443
-    delay: 5
-    timeout: 60
-  when: k3s_config.changed
-
-- name: Delete built-in Traefik IngressClass if present
-  kubernetes.core.k8s:
-    api_version: networking.k8s.io/v1
-    kind: IngressClass
-    name: traefik
-    state: absent
-  ignore_errors: true
-
-- name: Create namespace for Traefik
-  kubernetes.core.k8s:
-    api_version: v1
-    kind: Namespace
-    name: traefik
-    state: present
-
 - name: Copy Helm values files to app node (as normal user)
   copy:
-    src: "/helm/"
-    dest: /tmp/k8s/helm/
+    src: traefik-values.yaml
+    dest: /tmp/traefik-values.yaml
     mode: "0644"
-    directory_mode: "0755"
-  become: true
-
-- name: Add Traefik Helm repo
-  command: helm repo add traefik https://traefik.github.io/charts
-  args:
-    creates: /root/.cache/helm/repository/traefik-index.yaml
-
-- name: Update Helm repos
-  command: helm repo update
 
 - name: Deploy or Upgrade Traefik via Helm
-  command: >
-    helm upgrade --install traefik traefik/traefik
-    --namespace traefik
-    --create-namespace
-    -f /tmp/k8s/helm/traefik-values.yaml
-  become: true
+  kubernetes.core.helm:
+    name: traefik
+    update_repo_cache: true
+    chart_repo_url: https://traefik.github.io/charts
+    chart_ref: traefik
+    release_namespace: traefik
+    create_namespace: true
+    values_files:
+      - /tmp/traefik-values.yaml
+    state: present
+    wait: true

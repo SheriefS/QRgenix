@@ -1,4 +1,8 @@
 ---
+- name: Fetch duckdns toaken from AWS SecretsManager
+  set_fact:
+    duckdns_token: "{{ lookup('amazon.aws.secretsmanager_secret', duckdns_token_secret_id, region=aws_region) }}"
+
 - name: Create DuckDNS updater script
   copy:
     dest: /usr/local/bin/duckdns-update.sh

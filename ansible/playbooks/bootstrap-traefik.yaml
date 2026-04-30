@@ -1,7 +1,0 @@
-# playbooks/bootstrap-traefik.yaml
-- hosts: qrgenix
-  become: true
-  roles:
-    - helm # installs Helm binary
-    - traefik # helm upgrade --install traefik/traefik …
-

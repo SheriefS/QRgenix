@@ -1,18 +1,10 @@
-- name: Install dependencies for Helm
-  apt:
-    name:
-      - curl
-    state: present
-
 - name: Download Helm installer script
   get_url:
     url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
     dest: /tmp/get-helm-3.sh
     mode: "0755"
-  become: true
 
 - name: Install Helm
-  shell: /tmp/get-helm-3.sh
+  command: /tmp/get-helm-3.sh
   args:
     creates: /usr/local/bin/helm
-  become: true

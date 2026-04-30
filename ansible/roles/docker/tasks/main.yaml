@@ -1,5 +1,13 @@
 # roles/docker/tasks/main.yaml
 
+- name: Install packages for docker install verification
+  apt:
+    update_cache: true
+    name:
+      - ca-certificates
+      - gnupg
+    state: present
+#
 - name: Create and set permissions on keyring directory
   file:
     state: directory
@@ -19,7 +27,6 @@
 
 - name: Ensure Docker is installed
   apt:
-    update_cache: true
     name:
       - docker-ce
       - docker-ce-cli

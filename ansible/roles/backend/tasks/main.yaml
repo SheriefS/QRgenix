@@ -1,2 +1,0 @@
-- name: Trigger backend rollout
-  shell: kubectl rollout restart deployment qrgenix-backend -n qrgenix

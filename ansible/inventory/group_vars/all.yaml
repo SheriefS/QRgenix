@@ -3,6 +3,7 @@
 
 tailscale_domain: follow-pence.ts.net
 tailscale_cert_path: /etc/ssl/tailscale
+tailscale_secret_id: tailscale/ts-client-secret
 ansible_user: ubuntu
 ansible_ssh_common_args: "-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 ghcr_user: sheriefs

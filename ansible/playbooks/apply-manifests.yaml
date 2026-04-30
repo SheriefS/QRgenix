@@ -1,7 +1,0 @@
----
-- name: Apply QRgenix manifests
-  hosts: local
-  gather_facts: false
-  become: true
-  roles:
-    - k8s

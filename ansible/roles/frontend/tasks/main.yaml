@@ -1,2 +1,0 @@
-- name: Trigger frontend rollout
-  shell: kubectl rollout restart deployment qrgenix-frontend -n qrgenix

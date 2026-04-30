@@ -1,5 +1,0 @@
-- name: Rollout QRgenix Backend
-  hosts: qrgenix
-  become: true
-  roles:
-    - backend

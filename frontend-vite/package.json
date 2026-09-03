@@ -18,13 +18,13 @@
     "tailwindcss": "^4.1.8"
   },
   "overrides": {
-    "tar": "^7.5.12"
+    "tar": "^7.5.22"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.6.5",
+    "@testing-library/user-event": "^14.6.6",
     "@types/node": "^22.15.30",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.1.5",
@@ -33,7 +33,7 @@
     "eslint": "^9.28.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.19",
+    "eslint-plugin-react-refresh": "^0.5.4",
     "globals": "^16.2.0",
     "jest-axe": "^10.0.0",
     "jsdom": "^30.0.1",

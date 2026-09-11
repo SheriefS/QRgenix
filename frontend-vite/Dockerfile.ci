@@ -1,5 +1,5 @@
 # Dockerfile.ci
-FROM node:26.7.0
+FROM node:26.8
 
 WORKDIR /app
 COPY package*.json ./

@@ -1,6 +1,6 @@
 Django==6.1
 django-cors-headers==4.9.0
 pillow==12.3.0
-pytest==9.1.1
+pytest==9.2.0
 qrcode==8.2
 sqlparse==0.6.0
